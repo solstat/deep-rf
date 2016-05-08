@@ -11,7 +11,7 @@ config = {
     'author': 'solstat',
     'license': 'license',
     'packages': ['snake'],  # Replace with package names
-    'ext_modules': , # Cythonized Packages
+    'ext_modules': [], # Cythonized Packages
     'scripts': [], # Scripts with #!/usr/bin/env python
 }
 
