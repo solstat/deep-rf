@@ -73,12 +73,12 @@ class BoardState(object):
             return ACTION.RIGHT
         elif action == ACTION.RIGHT and prev_direction == ACTION.LEFT:
             return ACTION.LEFT
-        else
+        else:
             return action
 
     def check_score_pellet(self):
         head = self.snake.get_head()
-        if head.x == self.pellet.x and head.y == self.pellet.y
+        if head.x == self.pellet.x and head.y == self.pellet.y:
             return True
         return False
 
@@ -186,14 +186,14 @@ class Snake(object):
     def move(self):
         new_head = self.body[0]
         if self.direction is ACTION.UP:
-            new_head.y += _UP
+            new_head = new_head._replace(y = new_head.y + _UP)
         elif self.direction is ACTION.DOWN:
-            new_head.y += _DOWN
+            new_head = new_head._replace(y = new_head.y + _DOWN)
         elif self.direction is ACTION.LEFT:
-            new_head.x += _LEFT
+            new_head = new_head._replace(x = new_head.x + _LEFT)
         elif self.direction is ACTION.RIGHT:
-            new_head.x += _RIGHT
-        else
+            new_head = new_head._replace(x = new_head.x + _RIGHT)
+        else:
             raise ValueError("Unrecognized direction")
 
         self.body.insert(0, new_head)
