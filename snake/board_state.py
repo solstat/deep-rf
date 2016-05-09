@@ -51,7 +51,7 @@ class BoardState(object):
                 x = np.floor(board_width/2),
                 y = np.floor(board_height/2))
         self.snake = Snake(initial_location = initial_location)
-        self.pellet = self._new_random_pellet()
+        self._new_random_pellet()
         return
 
     def do_action(self, action):
@@ -123,7 +123,11 @@ class BoardState(object):
         return False
 
     def get_frame(self):
-        raise NotImplementedError()
+        frame = np.zeros((self.board_width, self.board_height))
+        for snake_point in self.snake.get_body():
+            frame[snake_point.x, snake_point.y] = 1
+        frame[self.pellet.x, self.pellet.y] = 2
+        return frame
 
     def get_score(self):
         return self.score
