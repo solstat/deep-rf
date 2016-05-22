@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Game Driver
+board_state.py ascii driver
 
 """
 
