@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Board State
+Provides Board State and Snake Class
 
 """
 
@@ -36,17 +36,16 @@ class BoardState(object):
 
     Methods:
       do_action(ACTION) - apply input action to snake
-      check_score_pellet() - check if snake eats pellet
-      score_pellet() - update board when pellet is eaten
-      is_game_over() - check if game is over
       get_frame() - return frame
       get_score() - return score
+      is_game_over() - check if game is over
       get_direction() - return direction from snake
       reset() - reset game
     """
     def __init__(self, board_height=20, board_width=20):
         self.board_height = board_height
         self.board_width = board_width
+        self.score = 0
         initial_location = Point(
                 x = np.floor(board_width/2),
                 y = np.floor(board_height/2))
@@ -59,7 +58,7 @@ class BoardState(object):
         direction = self._get_valid_action(action)
         self.snake.set_direction(new_direction = direction)
         self.snake.move()
-        if self.check_score_pellet():
+        if self.is_pellet_scored():
             self.score_pellet()
         return
 
@@ -76,7 +75,7 @@ class BoardState(object):
         else:
             return action
 
-    def check_score_pellet(self):
+    def is_pellet_scored(self):
         head = self.snake.get_head()
         if head.x == self.pellet.x and head.y == self.pellet.y:
             return True
@@ -94,7 +93,7 @@ class BoardState(object):
         invalid_pellet_points = self.snake.get_body()
         valid_pellet_points = np.ones((self.board_width, self.board_height))
         for invalid_point in invalid_pellet_points:
-            valid_pellet_points[invalid_point.x, invalid_point.y] = 0
+            valid_pellet_points[int(invalid_point.x), int(invalid_point.y)] = 0
         valid_x, valid_y = np.where(valid_pellet_points == 1)
 
         # Sample one uniformly at random
@@ -105,29 +104,43 @@ class BoardState(object):
 
         # Update pellet
         self.pellet = Point(
-                x = valid_x[new_point_index],
-                y = valid_y[new_point_index])
+                x = valid_x[int(new_point_index)],
+                y = valid_y[int(new_point_index)])
         return
 
     def is_game_over(self):
-        if self._wall_collision() or self.snake.self_collision():
+        if self._wall_collision():
+            return True
+        if self.snake.self_collision() and len(self.snake.get_body()) > 2:
             return True
         return False
 
     def _wall_collision(self):
         head = self.snake.get_head()
-        if head.x < 0 or head.x > self.board_width:
+        if head.x < 0 or head.x >= self.board_width:
             return True
-        if head.y < 0 or head.y > self.board_height:
+        if head.y < 0 or head.y >= self.board_height:
             return True
         return False
 
     def get_frame(self):
         frame = np.zeros((self.board_width, self.board_height))
         for snake_point in self.snake.get_body():
-            frame[snake_point.x, snake_point.y] = 1
-        frame[self.pellet.x, self.pellet.y] = 2
+            if self._is_in_board(snake_point):
+                frame[int(snake_point.x), int(snake_point.y)] = 1
+        frame[int(self.pellet.x), int(self.pellet.y)] = 2
         return frame
+
+    def _is_in_board(self, point):
+        if point.x < 0:
+            return False
+        if point.x >= self.board_width:
+            return False
+        if point.y < 0:
+            return False
+        if point.y >= self.board_height:
+            return False
+        return True
 
     def get_score(self):
         return self.score
