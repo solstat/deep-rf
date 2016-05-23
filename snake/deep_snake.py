@@ -28,10 +28,11 @@ class State:
 
 class DeepSnake(object):
 
-    def __init__(self, board_height, board_width):
+    def __init__(self, board_height, board_width, num_frames):
         self.epsilon = 1
         self.board_width = board_width
         self.board_height = board_height
+        self.num_frames = num_frames
         self.time_penalty = -.01
         self.death_penalty = -1.0
         self.the_board = BoardState(self.board_height, self.board_width)
@@ -66,7 +67,37 @@ class DeepSnake(object):
         raise Exception("Unimplemented")
 
     def _init_network(self):
-        return None
+        frame_size = self.board_height * self.board_width
+        state_size = frame_size * self.num_frames
+        q_state = tf.placeholder("float", [None, state_size])
+
+        weights1 = self._weight_variable([8, 8, 2, 32])
+        biases1 = self._bias_variable([32])
+        conv1 = tf.nn.relu(self._conv2d(q_state, weights1, 4) + biases1)
+
+        weights2= self._weight_variable([4, 4, 32, 64])
+        biases2 = self._bias_variable([64])
+        conv2 = tf.nn.relu(self._conv2d(conv1, weights2, 2) + biases2)
+
+        weights3 = self._weight_variable([3, 3, 64, 64])
+        biases3 = self._bias_variable([64])
+        conv3 = tf.nn.relu(self._conv2d(conv2, weights3, 1) + biases3)
+
+        height_after = self.board_height / 4 / 2
+        width_after = self.board_width / 4 / 2
+        weights4 = self._weight_variable([height_after * width_after * 64])
+        biases4 = self._bias_variable()
+        conv3_flat = tf.reshape(conv3, [-1, height_after * width_after * 64])
+        fc1 = tf.nn.relu(tf.matmul(conv3_flat, weights4) + biases4)
+
+        weights5 = self._weight_variable([height_after * width_after * 64])
+
+
+        action_q_values = tf.placeholder("float", [None, 4]) # 4 == num actions
+
+
+
+
 
     def _weight_variable(shape):
       initial = tf.truncated_normal(shape, stddev=0.1)
@@ -76,5 +107,5 @@ class DeepSnake(object):
       initial = tf.constant(0.1, shape=shape)
       return tf.Variable(initial)
 
-    def _conv2d(x, W):
-        return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
+    def _conv2d(x, W, stride):
+        return tf.nn.conv2d(x, W, strides=[1, stride, stride, 1], padding='SAME')
