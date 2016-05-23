@@ -153,7 +153,8 @@ class BoardState(object):
                 x = np.floor(self.board_width/2),
                 y = np.floor(self.board_height/2))
         self.snake = Snake(initial_location = initial_location)
-        self.pellet = self._new_random_pellet()
+        self._new_random_pellet()
+        self.score = 0
         return
 
 class Snake(object):

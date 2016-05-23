@@ -56,7 +56,6 @@ if __name__ == '__main__':
     print "snake.py"
     the_board = BoardState(10,10)
     getch = _Getch()
-
     while not the_board.is_game_over():
         sys.stdout.write("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
         sys.stdout.write("Score: " + str(the_board.get_score()) + "\n")
