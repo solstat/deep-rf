@@ -22,11 +22,11 @@ class State:
     Tuple of frames from snake game
 
     Args:
-        frames_tuple (T tuple of  board_height by board_width ndarrays)
+        frames_tuple (num_frames tuple of  board_height by board_width ndarrays)
 
     Methods:
         new_state_from_old(new_frame) - return new State object
-        to_array() - return (T by board_height by board_width ndarray) representation
+        to_array() - return (board_height by board_width by num_frames ndarray) representation
     """
     def __init__(self, frames_tuple):
         self.frames_tuple = frames_tuple
@@ -104,55 +104,63 @@ class DeepSnake(object):
         """ initialize Q function input & output
 
         Returns:
-            q_state: (tf.placeholder float [None, state_size]) - tf placeholder for state
-            q_output: (tf.Tensor of action_values) - Q function output to evaluated with tf.run()
+            q_state: (tf.placeholder float [None, board_height, board_width, num_frames]) - tf placeholder for state
+            q_output: (tf.Tensor of action_values [None, 4]) - Q function output to evaluated with tf.run()
 
         """
-        frame_size = self.board_height * self.board_width
-        state_size = frame_size * self.num_frames
         q_state = tf.placeholder(float, [None, self.board_height, self.board_width, self.num_frames])
 
-        weights1 = self._weight_variable([8, 8, self.num_frames, 32])
-        biases1 = self._bias_variable([32])
+        weights1 = self._filter_variable(filter_height=8, filter_width=8, in_channels=self.num_frames, out_channels=32)
+        biases1 = self._bias_variable(out_channels=32)
         conv1 = tf.nn.relu(self._conv2d(q_state, weights1, stride=4) + biases1)
+        # q_state is [batch_size, height, width, in_channels]
+        # weights is [filter_height, filter_width, in_channels, out_channels]
+        # conv is [batch_size, height/stride, width/stride, out_channels]
 
-        weights2= self._weight_variable([4, 4, 32, 64])
-        biases2 = self._bias_variable([64])
+        weights2= self._filter_variable(4, 4, 32, 64)
+        biases2 = self._bias_variable(64)
         conv2 = tf.nn.relu(self._conv2d(conv1, weights2, stride=2) + biases2)
 
-        weights3 = self._weight_variable([3, 3, 64, 64])
-        biases3 = self._bias_variable([64])
+        weights3 = self._filter_variable(3, 3, 64, 64)
+        biases3 = self._bias_variable(64)
         conv3 = tf.nn.relu(self._conv2d(conv2, weights3, stride=1) + biases3)
 
         height_after = self.board_height / 4 / 2 / 1 # Dimension Size decreases by conv strides
         width_after = self.board_width / 4 / 2 / 1   # Dimension Size decreases by conv strides
         conv3_flat = tf.reshape(conv3, [-1, height_after * width_after * 64])
 
-        weights4 = self._weight_variable([height_after * width_after * 64, height_after * width_after * 16])
-        biases4 = self._bias_variable([height_after * width_after * 16])
+        weights4 = self._matmul_variable(height_after * width_after * 64, height_after * width_after * 16)
+        biases4 = self._bias_variable(height_after * width_after * 16)
         fc1 = tf.nn.relu(tf.matmul(conv3_flat, weights4) + biases4)
 
-        weights5 = self._weight_variable([height_after * width_after * 16, height_after * width_after * 4])
-        biases5 = self._bias_variable([height_after * width_after * 4])
+        weights5 = self._matmul_variable(height_after * width_after * 16, height_after * width_after * 4)
+        biases5 = self._bias_variable(height_after * width_after * 4)
         fc2 = tf.nn.relu(tf.matmul(fc1, weights5) + biases5)
 
         #action_q_values = tf.placeholder("float", [None, 4]) # 4 == num actions
-        weights6 = self._weight_variable([height_after * width_after * 4, 4])
-        biases6 = self._bias_variable([4])
+        weights6 = self._matmul_variable(height_after * width_after * 4, 4)
+        biases6 = self._bias_variable(4)
         q_output = tf.nn.softmax(tf.matmul(fc2, weights6) + biases6)
 
         return q_state, q_output
 
 
+    @staticmethod
+    def _filter_variable(filter_height, filter_width, in_channels, out_channels):
+        initial = tf.truncated_normal(shape=[filter_height, filter_width, in_channels, out_channels],
+                                      stddev=0.1)
+        return tf.Variable(initial)
 
+    @staticmethod
+    def _matmul_variable(height, width):
+        initial = tf.truncated_normal(shape=[height, width], stddev=0.1)
+        return tf.Variable(initial)
 
-    def _weight_variable(shape):
-      initial = tf.truncated_normal(shape, stddev=0.1)
-      return tf.Variable(initial)
+    @staticmethod
+    def _bias_variable(out_channels):
+        initial = tf.constant(0.1, shape=[out_channels])
+        return tf.Variable(initial)
 
-    def _bias_variable(shape):
-      initial = tf.constant(0.1, shape=shape)
-      return tf.Variable(initial)
-
+    @staticmethod
     def _conv2d(x, W, stride):
         return tf.nn.conv2d(x, W, strides=[1, stride, stride, 1], padding='SAME')
