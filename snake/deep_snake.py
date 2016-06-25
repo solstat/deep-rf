@@ -7,7 +7,7 @@ Does Deep Q-Learning for Snake
 # Import Modules
 import numpy as np
 import tensorflow as tf
-from board_state import BoardState, ACTION
+from board_state import BoardState, ACTION, ACTION_LIST
 
 class ExperienceTuple:
     def __init__(self, state, action, reward, next_state):
@@ -47,18 +47,43 @@ class DeepSnake(object):
         self.time_penalty = -.01
         self.death_penalty = -1.0
         self.the_board = BoardState(self.board_height, self.board_width)
+        self.experience_replay = []
+        self._q_state, self._q_output = self._init_network()
+        self._y_obs, self._action_indices, self._loss = self._init_training_loss_operation()
+        self._optimizer = tf.train.AdamOptimizer().minimize(self._loss)
+        self._sess = tf.Session()
+        self._sess.run(tf.initialize_all_variables())
+
+
+    def __del__(self):
+        self._sess.close()
+
 
     def learn_q_function(self):
-        # Init Q network
-        # Optional Load Saved Q parameter
-
         # For Training Time
-            # Get next sample -> List of Batches
+            # Get next sample -> List of ExperienceTuples
             # Get a minibatch -> partially Optimize Q for loss
 
         # Return Q or Q parameters
 
-    def get_next_sample(self):
+        for it in xrange(1000):
+            if it % 100 == 0:
+                print it
+            for __ in xrange(50):
+                self.experience_replay.append(self.get_next_experience_tuple())
+            experience_batch = np.random.choice(self.experience_replay, 50, replace=False)
+            actions_batch = [et.action for et in experience_batch] # TODO: don't use this as an index
+            states_batch = [et.state.to_array() for et in experience_batch]
+            y_targets = self._get_target_values(experience_batch)
+
+            for __ in xrange(50):
+                self._sess.run(self._optimizer(), feed_dict={self._q_state: states_batch,
+                                                             self._action_indices: actions_batch,
+                                                             self._y_obs: y_targets})
+        return
+
+
+    def get_next_experience_tuple(self):
         """ Yield the Experience Tuple for training Q
         yields:
           experience_tuple (Experience Tuple) - current state, action, reward, new_state
@@ -96,9 +121,38 @@ class DeepSnake(object):
             reward = float(new_score - last_score)
         return reward
 
+
     def get_action_for_state(self, state):
-        # Unimplemented
-        raise Exception("Unimplemented")
+        if self.epsilon >= np.random.rand():
+            return np.random.choice(ACTION_LIST)
+        else:
+            q_values = self._sess.run(self._q_output, feed_dict={self._q_state: state})
+            return ACTION_LIST[np.argmax(q_values)]
+
+
+
+    def _init_training_loss_operation(self):
+        y_obs = tf.placeholder(dtype=tf.float32, shape=[None])
+        action_indices = tf.placeholder(dtype=tf.int16, shape=[None])
+        loss = tf.reduce_mean((y_obs - self._q_output[:,action_indices])^2)
+        return y_obs, action_indices, loss
+
+
+    def _get_target_values(self, experience_batch):
+        """
+        Args:
+            experience_batch:  list of ExperienceTuples
+
+        Returns:
+            y_target:   np.ndarray of [batch_size, r + max Q(s')]
+        """
+        rewards = np.array([et.reward for et in experience_batch])
+        states = [et.next_state.to_array() for et in experience_batch]
+        q_values = self._sess.run(self._q_output, feed_dict={self._q_state: states})
+        y_target = rewards + np.max(q_values, axis=1)
+        return y_target
+
+
 
     def _init_network(self):
         """ initialize Q function input & output
@@ -140,7 +194,7 @@ class DeepSnake(object):
         #action_q_values = tf.placeholder("float", [None, 4]) # 4 == num actions
         weights6 = self._matmul_variable(height_after * width_after * 4, 4)
         biases6 = self._bias_variable(4)
-        q_output = tf.nn.softmax(tf.matmul(fc2, weights6) + biases6)
+        q_output = tf.matmul(fc2, weights6) + biases6
 
         return q_state, q_output
 
