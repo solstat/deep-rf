@@ -205,13 +205,13 @@ class Snake(object):
 
     def move(self):
         new_head = self.body[0]
-        if self.direction is ACTION.UP:
+        if self.direction == ACTION.UP:
             new_head = new_head._replace(y = new_head.y + _UP)
-        elif self.direction is ACTION.DOWN:
+        elif self.direction == ACTION.DOWN:
             new_head = new_head._replace(y = new_head.y + _DOWN)
-        elif self.direction is ACTION.LEFT:
+        elif self.direction == ACTION.LEFT:
             new_head = new_head._replace(x = new_head.x + _LEFT)
-        elif self.direction is ACTION.RIGHT:
+        elif self.direction == ACTION.RIGHT:
             new_head = new_head._replace(x = new_head.x + _RIGHT)
         else:
             raise ValueError("Unrecognized direction")

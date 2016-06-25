@@ -8,6 +8,7 @@ Does Deep Q-Learning for Snake
 import numpy as np
 import tensorflow as tf
 from board_state import BoardState, ACTION, ACTION_LIST
+from ascii_snake import boardToString
 
 class ExperienceTuple:
     def __init__(self, state, action, reward, next_state):
@@ -40,12 +41,12 @@ class State:
 class DeepSnake(object):
 
     def __init__(self, board_height, board_width, num_frames=2):
-        self.epsilon = 1
+        self.epsilon = 0.5
         self.board_width = board_width
         self.board_height = board_height
         self.num_frames = num_frames
-        self.time_penalty = -.01
         self.death_penalty = -1.0
+        self.time_penalty = -1.0*self.death_penalty/(self.board_height * self.board_width)
         self.the_board = BoardState(self.board_height, self.board_width)
         self.experience_replay = []
         self._q_state, self._q_output = self._init_network()
@@ -66,20 +67,45 @@ class DeepSnake(object):
 
         # Return Q or Q parameters
 
+        experience_tuple_generator = self.get_next_experience_tuple()
+        for __ in xrange(10000):
+            self.experience_replay.append(experience_tuple_generator.next())
         for it in xrange(1000):
             if it % 100 == 0:
-                print it
-            for __ in xrange(50):
-                self.experience_replay.append(self.get_next_experience_tuple())
+                self.play_one_game(0.0)
+            print it
+            for __ in xrange(0):
+                self.experience_replay.append(experience_tuple_generator.next())
             experience_batch = np.random.choice(self.experience_replay, 50, replace=False)
             actions_batch = [et.action for et in experience_batch] # TODO: don't use this as an index
             states_batch = [et.state.to_array() for et in experience_batch]
             y_targets = self._get_target_values(experience_batch)
 
-            for __ in xrange(50):
-                self._sess.run(self._optimizer(), feed_dict={self._q_state: states_batch,
+            for __ in xrange(1):
+                self._sess.run(self._optimizer, feed_dict={self._q_state: states_batch,
                                                              self._action_indices: actions_batch,
                                                              self._y_obs: y_targets})
+        return
+
+    def play_one_game(self, my_epsilon):
+        old_epsilon = self.epsilon
+        self.epsilon = my_epsilon
+
+        new_board = BoardState(self.board_height, self.board_width)
+        first_frame = new_board.get_frame()
+        state_padding = [np.zeros(first_frame.shape) for _ in range(self.num_frames - 1)]
+        current_state = State(tuple(state_padding) + (first_frame,))
+
+        while not new_board.is_game_over():
+            print "\n\n\n\n\n\n\n"
+            print boardToString(new_board.get_frame().T)
+            raw_input("Press to continue.")
+            action = self.get_action_for_state(current_state)
+            new_board.do_action(action)
+            current_state = current_state.new_state_from_old(self.the_board.get_frame())
+
+
+        self.epsilon = old_epsilon
         return
 
 
@@ -126,15 +152,18 @@ class DeepSnake(object):
         if self.epsilon >= np.random.rand():
             return np.random.choice(ACTION_LIST)
         else:
-            q_values = self._sess.run(self._q_output, feed_dict={self._q_state: state})
+            q_state = np.array([state.to_array()])
+            q_values = self._sess.run(self._q_output, feed_dict={self._q_state: q_state})
             return ACTION_LIST[np.argmax(q_values)]
 
 
 
     def _init_training_loss_operation(self):
         y_obs = tf.placeholder(dtype=tf.float32, shape=[None])
-        action_indices = tf.placeholder(dtype=tf.int16, shape=[None])
-        loss = tf.reduce_mean((y_obs - self._q_output[:,action_indices])^2)
+        action_indices = tf.placeholder(dtype=tf.int64, shape=[None])
+        action_one_hot = tf.one_hot(action_indices, 4, on_value=1.0, off_value=0.0)
+        y_pred = tf.reduce_sum(self._q_output * action_one_hot, reduction_indices=1)
+        loss = tf.reduce_mean((y_obs - y_pred)**2)
         return y_obs, action_indices, loss
 
 
@@ -162,7 +191,7 @@ class DeepSnake(object):
             q_output: (tf.Tensor of action_values [None, 4]) - Q function output to evaluated with tf.run()
 
         """
-        q_state = tf.placeholder(float, [None, self.board_height, self.board_width, self.num_frames])
+        q_state = tf.placeholder(tf.float32, [None, self.board_height, self.board_width, self.num_frames])
 
         weights1 = self._filter_variable(filter_height=8, filter_width=8, in_channels=self.num_frames, out_channels=32)
         biases1 = self._bias_variable(out_channels=32)
@@ -179,8 +208,8 @@ class DeepSnake(object):
         biases3 = self._bias_variable(64)
         conv3 = tf.nn.relu(self._conv2d(conv2, weights3, stride=1) + biases3)
 
-        height_after = self.board_height / 4 / 2 / 1 # Dimension Size decreases by conv strides
-        width_after = self.board_width / 4 / 2 / 1   # Dimension Size decreases by conv strides
+        height_after = int(np.ceil(np.ceil(self.board_height / 4.0) / 2.0) / 1.0) # Dimension Size decreases by conv strides
+        width_after = int(np.ceil(np.ceil(self.board_width / 4.0) / 2.0) / 1.0)   # Dimension Size decreases by conv strides
         conv3_flat = tf.reshape(conv3, [-1, height_after * width_after * 64])
 
         weights4 = self._matmul_variable(height_after * width_after * 64, height_after * width_after * 16)
@@ -218,3 +247,7 @@ class DeepSnake(object):
     @staticmethod
     def _conv2d(x, W, stride):
         return tf.nn.conv2d(x, W, strides=[1, stride, stride, 1], padding='SAME')
+
+if __name__ == "__main__":
+    ds = DeepSnake(20, 20, 2)
+    ds.learn_q_function()
