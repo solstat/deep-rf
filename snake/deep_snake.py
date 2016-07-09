@@ -9,6 +9,7 @@ import numpy as np
 import tensorflow as tf
 from board_state import BoardState, ACTION, ACTION_LIST
 from ascii_snake import boardToString
+from operator import mul
 
 class ExperienceTuple:
     def __init__(self, state, action, reward, next_state):
@@ -41,12 +42,13 @@ class State:
 class DeepSnake(object):
 
     def __init__(self, board_height, board_width, num_frames=2):
-        self.epsilon = 0.5
+        self.epsilon = 1.0
+        self.gamma = 0.9
         self.board_width = board_width
         self.board_height = board_height
         self.num_frames = num_frames
         self.death_penalty = -1.0
-        self.time_penalty = -1.0*self.death_penalty/(self.board_height * self.board_width)
+        self.time_penalty = 0.0 #-1.0 * self.death_penalty / (self.board_height * self.board_width)
         self.the_board = BoardState(self.board_height, self.board_width)
         self.experience_replay = []
         self._q_state, self._q_output = self._init_network()
@@ -68,23 +70,24 @@ class DeepSnake(object):
         # Return Q or Q parameters
 
         experience_tuple_generator = self.get_next_experience_tuple()
-        for __ in xrange(10000):
-            self.experience_replay.append(experience_tuple_generator.next())
         for it in xrange(1000):
-            if it % 100 == 0:
+            if it != 0 and it % 100 == 0:
                 self.play_one_game(0.0)
             print it
-            for __ in xrange(0):
+            for __ in xrange(50):
                 self.experience_replay.append(experience_tuple_generator.next())
             experience_batch = np.random.choice(self.experience_replay, 50, replace=False)
-            actions_batch = [et.action for et in experience_batch] # TODO: don't use this as an index
+            actions_batch = [et.action.value for et in experience_batch] # TODO: don't use this as an index
             states_batch = [et.state.to_array() for et in experience_batch]
             y_targets = self._get_target_values(experience_batch)
 
-            for __ in xrange(1):
+            for __ in xrange(10):
                 self._sess.run(self._optimizer, feed_dict={self._q_state: states_batch,
                                                              self._action_indices: actions_batch,
                                                              self._y_obs: y_targets})
+            if 1 == 1:
+                print y_targets
+
         return
 
     def play_one_game(self, my_epsilon):
@@ -102,7 +105,7 @@ class DeepSnake(object):
             raw_input("Press to continue.")
             action = self.get_action_for_state(current_state)
             new_board.do_action(action)
-            current_state = current_state.new_state_from_old(self.the_board.get_frame())
+            current_state = current_state.new_state_from_old(new_board.get_frame())
 
 
         self.epsilon = old_epsilon
@@ -127,7 +130,10 @@ class DeepSnake(object):
                 new_state = current_state.new_state_from_old(self.the_board.get_frame())
                 new_score = self.the_board.get_score()
                 reward = self.calculate_reward(last_score, new_score)
-                yield ExperienceTuple(current_state, action, reward, new_state)
+                if self.the_board.is_game_over():
+                    yield ExperienceTuple(current_state, action, reward, None)
+                else:
+                    yield ExperienceTuple(current_state, action, reward, new_state)
                 current_state = new_state
 
 
@@ -144,6 +150,7 @@ class DeepSnake(object):
         elif new_score == last_score:
             reward = self.time_penalty
         else:
+            raise Exception("What?")
             reward = float(new_score - last_score)
         return reward
 
@@ -154,6 +161,9 @@ class DeepSnake(object):
         else:
             q_state = np.array([state.to_array()])
             q_values = self._sess.run(self._q_output, feed_dict={self._q_state: q_state})
+            if self.epsilon == 0:
+                print q_values
+                print ACTION_LIST[np.argmax(q_values)]
             return ACTION_LIST[np.argmax(q_values)]
 
 
@@ -176,9 +186,10 @@ class DeepSnake(object):
             y_target:   np.ndarray of [batch_size, r + max Q(s')]
         """
         rewards = np.array([et.reward for et in experience_batch])
-        states = [et.next_state.to_array() for et in experience_batch]
+        states = [et.next_state.to_array() if et.next_state is not None else et.state.to_array() for et in experience_batch]
         q_values = self._sess.run(self._q_output, feed_dict={self._q_state: states})
-        y_target = rewards + np.max(q_values, axis=1)
+        game_not_over_indicator = np.array([1.0 if et.next_state is not None else 0.0 for et in experience_batch])
+        y_target = rewards + self.gamma * np.max(q_values, axis=1) * game_not_over_indicator
         return y_target
 
 
@@ -191,63 +202,83 @@ class DeepSnake(object):
             q_output: (tf.Tensor of action_values [None, 4]) - Q function output to evaluated with tf.run()
 
         """
+        # q_state = tf.placeholder(tf.float32, [None, self.board_height, self.board_width, self.num_frames])
+        # q_state_flat = tf.reshape(q_state, [-1, self.board_height * self.board_width * self.num_frames])
+        # w = self._matmul_variable(self.board_height * self.board_width * self.num_frames, 4)
+        # #b = self._bias_variable(4)
+        # q_output = tf.matmul(q_state_flat, w)# + b
+        #
+        # return q_state, q_output
+
         q_state = tf.placeholder(tf.float32, [None, self.board_height, self.board_width, self.num_frames])
+        w_conv1 = self._filter_variable(1, 1, in_channels=self.num_frames, out_channels=2)
+        h_conv1 = tf.nn.relu(self._conv2d(q_state, w_conv1, stride=1))
 
-        weights1 = self._filter_variable(filter_height=8, filter_width=8, in_channels=self.num_frames, out_channels=32)
-        biases1 = self._bias_variable(out_channels=32)
-        conv1 = tf.nn.relu(self._conv2d(q_state, weights1, stride=4) + biases1)
-        # q_state is [batch_size, height, width, in_channels]
-        # weights is [filter_height, filter_width, in_channels, out_channels]
-        # conv is [batch_size, height/stride, width/stride, out_channels]
-
-        weights2= self._filter_variable(4, 4, 32, 64)
-        biases2 = self._bias_variable(64)
-        conv2 = tf.nn.relu(self._conv2d(conv1, weights2, stride=2) + biases2)
-
-        weights3 = self._filter_variable(3, 3, 64, 64)
-        biases3 = self._bias_variable(64)
-        conv3 = tf.nn.relu(self._conv2d(conv2, weights3, stride=1) + biases3)
-
-        height_after = int(np.ceil(np.ceil(self.board_height / 4.0) / 2.0) / 1.0) # Dimension Size decreases by conv strides
-        width_after = int(np.ceil(np.ceil(self.board_width / 4.0) / 2.0) / 1.0)   # Dimension Size decreases by conv strides
-        conv3_flat = tf.reshape(conv3, [-1, height_after * width_after * 64])
-
-        weights4 = self._matmul_variable(height_after * width_after * 64, height_after * width_after * 16)
-        biases4 = self._bias_variable(height_after * width_after * 16)
-        fc1 = tf.nn.relu(tf.matmul(conv3_flat, weights4) + biases4)
-
-        weights5 = self._matmul_variable(height_after * width_after * 16, height_after * width_after * 4)
-        biases5 = self._bias_variable(height_after * width_after * 4)
-        fc2 = tf.nn.relu(tf.matmul(fc1, weights5) + biases5)
-
-        #action_q_values = tf.placeholder("float", [None, 4]) # 4 == num actions
-        weights6 = self._matmul_variable(height_after * width_after * 4, 4)
-        biases6 = self._bias_variable(4)
-        q_output = tf.matmul(fc2, weights6) + biases6
+        q_state_flat = tf.reshape(h_conv1, [-1, self.board_height * self.board_width * self.num_frames])
+        w = self._matmul_variable(self.board_height * self.board_width * self.num_frames, 4)
+        q_output = tf.matmul(q_state_flat, w)
 
         return q_state, q_output
+
+        # q_state = tf.placeholder(tf.float32, [None, self.board_height, self.board_width, self.num_frames])
+        #
+        # w_conv1 = self._filter_variable(2, 2, in_channels=self.num_frames, out_channels=1)
+        # b_conv1 = self._bias_variable(out_channels=int(w_conv1.get_shape()[-1]))
+        # h_conv1 = tf.nn.relu(self._conv2d(q_state, w_conv1, stride=1) + b_conv1)
+        # # q_state is [batch_size, height, width, in_channels]
+        # # weights is [filter_height, filter_width, in_channels, out_channels]
+        # # conv is [batch_size, height/stride, width/stride, out_channels]
+        #
+        # w_conv2 = self._filter_variable(2, 2, int(w_conv1.get_shape()[-1]), 1)
+        # b_conv2 = self._bias_variable(int(w_conv2.get_shape()[-1]))
+        # h_conv2 = tf.nn.relu(self._conv2d(h_conv1, w_conv2, stride=1) + b_conv2)
+        #
+        # #w_conv3 = self._filter_variable(3, 3, 64, 64)
+        # #b_conv3 = self._bias_variable(64)
+        # #h_conv3 = tf.nn.relu(self._conv2d(h_conv2, w_conv3, stride=1) + b_conv3)
+        #
+        # #height_after = int(np.ceil(np.ceil(self.board_height / 4.0) / 2.0) / 1.0) # Dimension Size decreases by conv strides
+        # #width_after = int(np.ceil(np.ceil(self.board_width / 4.0) / 2.0) / 1.0)   # Dimension Size decreases by conv strides
+        # dim_conv2 = int(reduce(mul, h_conv2.get_shape()[1:]))
+        # flattened_conv2 = tf.reshape(h_conv2, [-1, dim_conv2])
+        #
+        # w_fc1 = self._matmul_variable(dim_conv2, np.max([dim_conv2 / 2, 16]))
+        # biases4 = self._bias_variable(int(w_fc1.get_shape()[-1]))
+        # h_fc1 = tf.nn.relu(tf.matmul(flattened_conv2, w_fc1) + biases4)
+        #
+        # w_fc2 = self._matmul_variable(int(w_fc1.get_shape()[-1]), 4)
+        # b_fc2 = self._bias_variable(int(w_fc2.get_shape()[-1]))
+        # h_fc2 = tf.matmul(h_fc1, w_fc2) + b_fc2
+        #
+        # #action_q_values = tf.placeholder("float", [None, 4]) # 4 == num actions
+        # #weights6 = self._matmul_variable(height_after * width_after * 4, 4)
+        # #biases6 = self._bias_variable(4)
+        # #q_output = tf.matmul(h_fc2, weights6) + biases6
+        #
+        # return q_state, h_fc2
 
 
     @staticmethod
     def _filter_variable(filter_height, filter_width, in_channels, out_channels):
         initial = tf.truncated_normal(shape=[filter_height, filter_width, in_channels, out_channels],
-                                      stddev=0.1)
+                                      stddev=0.1, mean=0.0)
+        #np.ones([filter_height, filter_width, in_channels, out_channels], dtype=np.float32)
         return tf.Variable(initial)
 
     @staticmethod
     def _matmul_variable(height, width):
-        initial = tf.truncated_normal(shape=[height, width], stddev=0.1)
+        initial = np.zeros([height, width], dtype=np.float32) #tf.truncated_normal(shape=[height, width], stddev=0.1)
         return tf.Variable(initial)
 
     @staticmethod
     def _bias_variable(out_channels):
-        initial = tf.constant(0.1, shape=[out_channels])
+        initial = np.zeros([out_channels], dtype=np.float32) #tf.constant(0.1, shape=[out_channels])
         return tf.Variable(initial)
 
     @staticmethod
     def _conv2d(x, W, stride):
-        return tf.nn.conv2d(x, W, strides=[1, stride, stride, 1], padding='SAME')
+        return tf.nn.conv2d(x, W, strides=[1, stride, stride, 1], padding='VALID')
 
 if __name__ == "__main__":
-    ds = DeepSnake(20, 20, 2)
+    ds = DeepSnake(3, 3, 2)
     ds.learn_q_function()

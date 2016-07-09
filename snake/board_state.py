@@ -52,7 +52,7 @@ class BoardState(object):
                 x = np.floor(board_width/2),
                 y = np.floor(board_height/2))
         self.snake = Snake(initial_location = initial_location)
-        self._new_random_pellet()
+        #self._new_random_pellet()
         return
 
     def do_action(self, action):
@@ -60,8 +60,8 @@ class BoardState(object):
         direction = self._get_valid_action(action)
         self.snake.set_direction(new_direction = direction)
         self.snake.move()
-        if self.is_pellet_scored():
-            self.score_pellet()
+        #if self.is_pellet_scored():
+        #    self.score_pellet()
         return
 
     def _get_valid_action(self, action):
@@ -84,7 +84,7 @@ class BoardState(object):
         return False
 
     def score_pellet(self):
-        self.snake.grow()
+        #self.snake.grow()
         self._new_random_pellet()
         self.score += 1
         return
@@ -130,7 +130,7 @@ class BoardState(object):
         for snake_point in self.snake.get_body():
             if self._is_in_board(snake_point):
                 frame[int(snake_point.x), int(snake_point.y)] = 1
-        frame[int(self.pellet.x), int(self.pellet.y)] = 2
+        #frame[int(self.pellet.x), int(self.pellet.y)] = 2
         return frame
 
     def _is_in_board(self, point):
@@ -155,7 +155,7 @@ class BoardState(object):
                 x = np.floor(self.board_width/2),
                 y = np.floor(self.board_height/2))
         self.snake = Snake(initial_location = initial_location)
-        self._new_random_pellet()
+        #self._new_random_pellet()
         self.score = 0
         return
 
