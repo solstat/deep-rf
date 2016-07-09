@@ -62,7 +62,9 @@ class DeepSnake(object):
         self._sess.close()
 
 
-    def learn_q_function(self):
+    def learn_q_function(self, num_iterations=1000, batch_size=50,
+                         num_training_steps=10, play_frequency=100,
+                         epsilon_multiplier=1.0):
         # For Training Time
             # Get next sample -> List of ExperienceTuples
             # Get a minibatch -> partially Optimize Q for loss
@@ -70,23 +72,24 @@ class DeepSnake(object):
         # Return Q or Q parameters
 
         experience_tuple_generator = self.get_next_experience_tuple()
-        for it in xrange(1000):
-            if it != 0 and it % 100 == 0:
+        for it in xrange(num_iterations):
+            if it != 0 and it % play_frequency == 0:
+                print y_targets
                 self.play_one_game(0.0)
             print it
-            for __ in xrange(50):
+            for __ in xrange(batch_size):
                 self.experience_replay.append(experience_tuple_generator.next())
-            experience_batch = np.random.choice(self.experience_replay, 50, replace=False)
+            experience_batch = np.random.choice(self.experience_replay, batch_size, replace=False)
             actions_batch = [et.action.value for et in experience_batch] # TODO: don't use this as an index
             states_batch = [et.state.to_array() for et in experience_batch]
             y_targets = self._get_target_values(experience_batch)
 
-            for __ in xrange(10):
+            for __ in xrange(num_training_steps):
                 self._sess.run(self._optimizer, feed_dict={self._q_state: states_batch,
                                                              self._action_indices: actions_batch,
                                                              self._y_obs: y_targets})
-            if 1 == 1:
-                print y_targets
+
+            self.epsilon *= epsilon_multiplier
 
         return
 
@@ -102,11 +105,19 @@ class DeepSnake(object):
         while not new_board.is_game_over():
             print "\n\n\n\n\n\n\n"
             print boardToString(new_board.get_frame().T)
-            raw_input("Press to continue.")
             action = self.get_action_for_state(current_state)
-            new_board.do_action(action)
-            current_state = current_state.new_state_from_old(new_board.get_frame())
-
+            r = raw_input("Press q to quit.")
+            if r == 'q':
+                break
+            if r == 'r':
+                new_board = BoardState(self.board_height, self.board_width)
+                first_frame = new_board.get_frame()
+                state_padding = [np.zeros(first_frame.shape) for _ in
+                                 range(self.num_frames - 1)]
+                current_state = State(tuple(state_padding) + (first_frame,))
+            else:
+                new_board.do_action(action)
+                current_state = current_state.new_state_from_old(new_board.get_frame())
 
         self.epsilon = old_epsilon
         return
@@ -150,7 +161,7 @@ class DeepSnake(object):
         elif new_score == last_score:
             reward = self.time_penalty
         else:
-            raise Exception("What?")
+            #raise Exception("This was just to test without pellet")
             reward = float(new_score - last_score)
         return reward
 
@@ -280,5 +291,6 @@ class DeepSnake(object):
         return tf.nn.conv2d(x, W, strides=[1, stride, stride, 1], padding='VALID')
 
 if __name__ == "__main__":
-    ds = DeepSnake(3, 3, 2)
-    ds.learn_q_function()
+    np.random.seed(1337)
+    ds = DeepSnake(7, 7, 2)
+    ds.learn_q_function(num_iterations=10000, batch_size=50, num_training_steps=10, play_frequency=500)
