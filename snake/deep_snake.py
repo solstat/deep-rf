@@ -48,7 +48,7 @@ class DeepSnake(object):
         self.board_height = board_height
         self.num_frames = num_frames
         self.death_penalty = -1.0
-        self.time_penalty = 0.0 #-1.0 * self.death_penalty / (self.board_height * self.board_width)
+        self.time_penalty = -0.01
         self.the_board = BoardState(self.board_height, self.board_width)
         self.experience_replay = []
         self._q_state, self._q_output = self._init_network()
@@ -102,14 +102,14 @@ class DeepSnake(object):
         state_padding = [np.zeros(first_frame.shape) for _ in range(self.num_frames - 1)]
         current_state = State(tuple(state_padding) + (first_frame,))
 
-        while not new_board.is_game_over():
+        while True:
             print "\n\n\n\n\n\n\n"
             print boardToString(new_board.get_frame().T)
             action = self.get_action_for_state(current_state)
-            r = raw_input("Press q to quit.")
+            r = raw_input("Press q to quit or Press r to reset: ")
             if r == 'q':
                 break
-            if r == 'r':
+            elif r == 'r' or new_board.is_game_over():
                 new_board = BoardState(self.board_height, self.board_width)
                 first_frame = new_board.get_frame()
                 state_padding = [np.zeros(first_frame.shape) for _ in
@@ -173,6 +173,7 @@ class DeepSnake(object):
             q_state = np.array([state.to_array()])
             q_values = self._sess.run(self._q_output, feed_dict={self._q_state: q_state})
             if self.epsilon == 0:
+                print ACTION_LIST
                 print q_values
                 print ACTION_LIST[np.argmax(q_values)]
             return ACTION_LIST[np.argmax(q_values)]
@@ -222,12 +223,23 @@ class DeepSnake(object):
         # return q_state, q_output
 
         q_state = tf.placeholder(tf.float32, [None, self.board_height, self.board_width, self.num_frames])
-        w_conv1 = self._filter_variable(1, 1, in_channels=self.num_frames, out_channels=2)
+        w_conv1 = self._filter_variable(2, 2, in_channels=self.num_frames, out_channels=8)
         h_conv1 = tf.nn.relu(self._conv2d(q_state, w_conv1, stride=1))
 
-        q_state_flat = tf.reshape(h_conv1, [-1, self.board_height * self.board_width * self.num_frames])
-        w = self._matmul_variable(self.board_height * self.board_width * self.num_frames, 4)
+        w_conv2 = self._filter_variable(1, 1, in_channels=int(w_conv1.get_shape()[-1]), out_channels=8)
+        h_conv2 = tf.nn.relu(self._conv2d(h_conv1, w_conv2, stride=1))
+
+        w_conv3 = self._filter_variable(1, 1, in_channels=int(w_conv2.get_shape()[-1]), out_channels=8)
+        h_conv3 = tf.nn.relu(self._conv2d(h_conv2, w_conv3, stride=1))
+
+        dim_conv3 = int(reduce(mul, h_conv3.get_shape()[1:]))
+        q_state_flat = tf.reshape(h_conv3, [-1, dim_conv3])
+        w = self._matmul_variable(dim_conv3, 4)
         q_output = tf.matmul(q_state_flat, w)
+
+        # q_state_flat = tf.reshape(h_conv1, [-1, self.board_height * self.board_width * self.num_frames])
+        # w = self._matmul_variable(self.board_height * self.board_width * self.num_frames, 4)
+        # q_output = tf.matmul(q_state_flat, w)
 
         return q_state, q_output
 
@@ -292,5 +304,7 @@ class DeepSnake(object):
 
 if __name__ == "__main__":
     np.random.seed(1337)
-    ds = DeepSnake(7, 7, 2)
+    ds = DeepSnake(3, 3, 2)
+    ds.epsilon = 0.5
+    ds.time_penalty = 0.0
     ds.learn_q_function(num_iterations=10000, batch_size=50, num_training_steps=10, play_frequency=500)
