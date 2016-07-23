@@ -10,6 +10,7 @@ import tensorflow as tf
 from board_state import BoardState, ACTION, ACTION_LIST
 from ascii_snake import boardToString
 from operator import mul
+import os
 
 class ExperienceTuple:
     def __init__(self, state, action, reward, next_state):
@@ -41,7 +42,7 @@ class State:
 
 class DeepSnake(object):
 
-    def __init__(self, board_height, board_width, num_frames=2):
+    def __init__(self, board_height, board_width, num_frames=2, tf_file_save_path=None):
         self.epsilon = 1.0
         self.gamma = 0.9
         self.board_width = board_width
@@ -51,15 +52,27 @@ class DeepSnake(object):
         self.time_penalty = -0.01
         self.the_board = BoardState(self.board_height, self.board_width)
         self.experience_replay = []
+        self._tf_file_save_path = tf_file_save_path
         self._q_state, self._q_output = self._init_network()
         self._y_obs, self._action_indices, self._loss = self._init_training_loss_operation()
         self._optimizer = tf.train.AdamOptimizer().minimize(self._loss)
+        self._saver = tf.train.Saver()
         self._sess = tf.Session()
-        self._sess.run(tf.initialize_all_variables())
+
+        if tf_file_save_path is not None and os.path.exists(tf_file_save_path):
+            self._saver.restore(self._sess, tf_file_save_path)
+            print("Model restored from " + tf_file_save_path + ".")
+        else:
+            self._sess.run(tf.initialize_all_variables())
 
 
     def __del__(self):
         self._sess.close()
+
+
+    def save_tf_weights(self):
+        if self._tf_file_save_path is not None:
+            self._saver.save(self._sess, self._tf_file_save_path)
 
 
     def learn_q_function(self, num_iterations=1000, batch_size=50,
@@ -234,8 +247,12 @@ class DeepSnake(object):
 
         dim_conv3 = int(reduce(mul, h_conv3.get_shape()[1:]))
         q_state_flat = tf.reshape(h_conv3, [-1, dim_conv3])
-        w = self._matmul_variable(dim_conv3, 4)
-        q_output = tf.matmul(q_state_flat, w)
+        w_fc1 = self._matmul_variable(dim_conv3, dim_conv3)
+        b_fc1 = self._bias_variable(dim_conv3)
+        h_fc1 = tf.nn.relu(tf.matmul(q_state_flat, w_fc1) + b_fc1)
+
+        w_out = self._matmul_variable(dim_conv3, 4)
+        q_output =  tf.matmul(h_fc1, w_out)
 
         # q_state_flat = tf.reshape(h_conv1, [-1, self.board_height * self.board_width * self.num_frames])
         # w = self._matmul_variable(self.board_height * self.board_width * self.num_frames, 4)
@@ -304,7 +321,8 @@ class DeepSnake(object):
 
 if __name__ == "__main__":
     np.random.seed(1337)
-    ds = DeepSnake(3, 3, 2)
+    ds = DeepSnake(3, 3, 2, tf_file_save_path="data/deep_snake/test2.ckpt")
     ds.epsilon = 0.5
     ds.time_penalty = 0.0
-    ds.learn_q_function(num_iterations=10000, batch_size=50, num_training_steps=10, play_frequency=500)
+    ds.learn_q_function(num_iterations=100, batch_size=50, num_training_steps=10, play_frequency=100)
+    ds.save_tf_weights()
