@@ -12,32 +12,40 @@ class QGraph(object):
         self.q_input = q_input
         self.q_output = q_output
         self.graph = self.q_input.graph
-        self.q_var_list = self.graph.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+        self.var_list = self.graph.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
 
     @classmethod
-    def default_q_graph(cls, q_input, num_actions):
+    def default_q_graph(cls, game, num_frames):
         """ initialize Q function input & output
 
             Returns:
                 QGraph: a q graph
         """
-        w_conv1 = cls._filter_variable(2, 2, in_channels=int(q_input.get_shape()[-1]), out_channels=8)
-        h_conv1 = tf.nn.relu(cls._conv2d(q_input, w_conv1, stride=1))
 
-        w_conv2 = cls._filter_variable(1, 1, in_channels=int(w_conv1.get_shape()[-1]), out_channels=8)
-        h_conv2 = tf.nn.relu(cls._conv2d(h_conv1, w_conv2, stride=1))
+        g = tf.Graph()
 
-        w_conv3 = cls._filter_variable(1, 1, in_channels=int(w_conv2.get_shape()[-1]), out_channels=8)
-        h_conv3 = tf.nn.relu(cls._conv2d(h_conv2, w_conv3, stride=1))
+        with g.as_default():
+            q_input = tf.placeholder(tf.float32, [None, game.frame_height,
+                                                  game.frame_width,
+                                                  num_frames])
 
-        dim_conv3 = int(reduce(mul, h_conv3.get_shape()[1:]))
-        q_state_flat = tf.reshape(h_conv3, [-1, dim_conv3])
-        w_fc1 = cls._matmul_variable(dim_conv3, dim_conv3)
-        b_fc1 = cls._bias_variable(dim_conv3)
-        h_fc1 = tf.nn.relu(tf.matmul(q_state_flat, w_fc1) + b_fc1)
+            w_conv1 = cls._filter_variable(2, 2, in_channels=int(q_input.get_shape()[-1]), out_channels=8)
+            h_conv1 = tf.nn.relu(cls._conv2d(q_input, w_conv1, stride=1))
 
-        w_out = cls._matmul_variable(dim_conv3, num_actions)
-        q_output = tf.matmul(h_fc1, w_out)
+            w_conv2 = cls._filter_variable(1, 1, in_channels=int(w_conv1.get_shape()[-1]), out_channels=8)
+            h_conv2 = tf.nn.relu(cls._conv2d(h_conv1, w_conv2, stride=1))
+
+            w_conv3 = cls._filter_variable(1, 1, in_channels=int(w_conv2.get_shape()[-1]), out_channels=8)
+            h_conv3 = tf.nn.relu(cls._conv2d(h_conv2, w_conv3, stride=1))
+
+            dim_conv3 = int(reduce(mul, h_conv3.get_shape()[1:]))
+            q_state_flat = tf.reshape(h_conv3, [-1, dim_conv3])
+            w_fc1 = cls._matmul_variable(dim_conv3, dim_conv3)
+            b_fc1 = cls._bias_variable(dim_conv3)
+            h_fc1 = tf.nn.relu(tf.matmul(q_state_flat, w_fc1) + b_fc1)
+
+            w_out = cls._matmul_variable(dim_conv3, len(game.action_list))
+            q_output = tf.matmul(h_fc1, w_out)
 
         return QGraph(q_input, q_output)
 

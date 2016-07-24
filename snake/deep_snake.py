@@ -8,7 +8,7 @@ Does Deep Q-Learning for Snake
 import numpy as np
 import tensorflow as tf
 from board_state import BoardState, ACTION, ACTION_LIST
-from ascii_snake import boardToString
+from ascii_snake import board_to_string
 from operator import mul
 import os
 
@@ -117,7 +117,7 @@ class DeepSnake(object):
 
         while True:
             print "\n\n\n\n\n\n\n"
-            print boardToString(new_board.get_frame().T)
+            print board_to_string(new_board.get_frame().T)
             action = self.get_action_for_state(current_state)
             r = raw_input("Press q to quit or Press r to reset: ")
             if r == 'q':

@@ -31,7 +31,7 @@ wasd_to_action = {
         "d": ACTION.RIGHT,
         }
 
-def boardToString(b):
+def board_to_string(b):
     s = "|"
     for i in range(b.shape[0]):
         s += "---"
@@ -59,7 +59,7 @@ if __name__ == '__main__':
     while not the_board.is_game_over():
         sys.stdout.write("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
         sys.stdout.write("Score: " + str(the_board.get_score()) + "\n")
-        sys.stdout.write(boardToString(the_board.get_frame().T))
+        sys.stdout.write(board_to_string(the_board.get_frame().T))
         sys.stdout.flush()
 
         wasd = getch()

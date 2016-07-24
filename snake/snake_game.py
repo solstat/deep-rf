@@ -5,42 +5,21 @@ Single Player Game class
 """
 
 import numpy as np
-
-
-class SinglePlayerGame:
-    def __init__(self, action_list, score=0):
-        self.action_list = action_list
-        self.score = score
-
-    def do_action(self, action):
-        raise NotImplementedError('Subclass should define do_action()')
-
-    def get_frame(self):
-        raise NotImplementedError('Subclass should define get_frame()')
-
-    def get_score(self):
-        raise NotImplementedError('Subclass should define get_score()')
-
-    def is_game_over(self):
-        raise NotImplementedError('Subclass should define is_game_over()')
-
-    def reset(self):
-        raise NotImplementedError('Subclass should define reset()')
+from deep_rf import SinglePlayerGame
 
 
 class SnakeGame(SinglePlayerGame):
     def __init__(self, board_height=20, board_width=20):
-        SinglePlayerGame.__init__(self, action_list={'UP': 0, 'DOWN': 1,
-                                                     'LEFT': 2, 'RIGHT': 3},
+        SinglePlayerGame.__init__(self, action_list=['UP', 'DOWN',
+                                                     'LEFT', 'RIGHT'],
+                                  frame_height = board_height,
+                                  frame_width = board_width,
                                   score=0)
 
-        self.board_height = board_height
-        self.board_width = board_width
+        self.initial_location = {'x': np.floor(self.frame_width / 2),
+                                 'y': np.floor(self.frame_height / 2)}
 
-        self.initial_location = {'x': np.floor(self.board_width / 2),
-                                 'y': np.floor(self.board_height / 2)}
-
-        self.snake = Snake(self.initial_location, self.action_list)
+        self.snake = Snake(self.initial_location, self.action_dict)
 
         self._new_random_pellet()
 
@@ -50,10 +29,10 @@ class SnakeGame(SinglePlayerGame):
         new_direction = action
 
         #  Get valid action
-        is_180 = new_direction == self.action_list['DOWN'] and prev_direction == self.action_list['UP']
-        is_180 = is_180 or new_direction == self.action_list['UP'] and prev_direction == self.action_list['DOWN']
-        is_180 = is_180 or new_direction == self.action_list['LEFT'] and prev_direction == self.action_list['RIGHT']
-        is_180 = is_180 or new_direction == self.action_list['RIGHT'] and prev_direction == self.action_list['LEFT']
+        is_180 = new_direction == self.action_dict['DOWN'] and prev_direction == self.action_dict['UP']
+        is_180 = is_180 or new_direction == self.action_dict['UP'] and prev_direction == self.action_dict['DOWN']
+        is_180 = is_180 or new_direction == self.action_dict['LEFT'] and prev_direction == self.action_dict['RIGHT']
+        is_180 = is_180 or new_direction == self.action_dict['RIGHT'] and prev_direction == self.action_dict['LEFT']
         if is_180:
             new_direction = prev_direction
 
@@ -77,7 +56,7 @@ class SnakeGame(SinglePlayerGame):
     def _new_random_pellet(self):
         # Find valid pellet locations
         invalid_pellet_points = self.snake.body
-        valid_pellet_points = np.ones((self.board_width, self.board_height))
+        valid_pellet_points = np.ones((self.frame_width, self.frame_height))
         for invalid_point in invalid_pellet_points:
             valid_pellet_points[int(invalid_point['x']), int(invalid_point['y'])] = 0
         valid_x, valid_y = np.where(valid_pellet_points == 1)
@@ -95,7 +74,7 @@ class SnakeGame(SinglePlayerGame):
         }
 
     def get_frame(self):
-        frame = np.zeros((self.board_width, self.board_height))
+        frame = np.zeros((self.frame_width, self.frame_height))
         for snake_point in self.snake.body:
             if self._is_in_board(snake_point):
                 frame[int(snake_point['x']), int(snake_point['y'])] = 1
@@ -105,54 +84,66 @@ class SnakeGame(SinglePlayerGame):
     def _is_in_board(self, point):
         if point['x'] < 0:
             return False
-        if point['x'] >= self.board_width:
+        if point['x'] >= self.frame_width:
             return False
         if point['y'] < 0:
             return False
-        if point['y'] >= self.board_height:
+        if point['y'] >= self.frame_height:
             return False
         return True
 
     def get_score(self):
-        return 4
+        return self.score
 
     def is_game_over(self):
-        return 5
+        if self._is_wall_collision():
+            return True
+        elif self.snake.is_self_collision() and len(self.snake.body) > 2:
+            return True
+        return False
+
+    def _is_wall_collision(self):
+        head = self.snake.body[0]
+        if head['y'] < 0 or head['y'] >= self.frame_height:
+            return True
+        if head['x'] < 0 or head['x'] >= self.frame_width:
+            return True
+        return False
 
     def reset(self):
-        return 6
-
-
-
-
+        self.initial_location = {'x': np.floor(self.frame_width / 2),
+                                 'y': np.floor(self.frame_height / 2)}
+        self.snake = Snake(self.initial_location, self.action_dict)
+        self._new_random_pellet()
+        self.score = 0
 
 
 class Snake(object):
     """
         Args:
             initial_location (dictionary {'x': int, 'y': int})
-            action_list (dictionary {'UP': 0, 'DOWN": 1, ...})
+            action_dict (dictionary {'UP': 0, 'DOWN": 1, ...})
         Attributes:
             body (list of dictionaries {'x': int, 'y': int})
-            action_list
-            direction (int from action_list)
+            action_dict
+            direction (int from action_dict)
         Methods:
             move - move body in direction
             grow - append point to end of body
             is_self_collision - check if snake has collided with itself
     """
-    def __init__(self, initial_location, action_list):
+    def __init__(self, initial_location, action_dict):
         self.body = [initial_location]
-        self.action_list = action_list
-        self.direction = self.action_list['UP']
+        self.action_dict = action_dict
+        self.direction = self.action_dict['UP']
 
     def move(self):
         head = self.body[0].copy()  # deep copy
-        if self.direction == self.action_list['UP']:
+        if self.direction == self.action_dict['UP']:
             head['y'] = head['y'] + 1
-        elif self.direction == self.action_list['DOWN']:
+        elif self.direction == self.action_dict['DOWN']:
             head['y'] = head['y'] - 1
-        elif self.direction == self.action_list['LEFT']:
+        elif self.direction == self.action_dict['LEFT']:
             head['x'] = head['x'] - 1
         else:
             head['x'] = head['x'] + 1
