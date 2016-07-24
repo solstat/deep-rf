@@ -50,26 +50,25 @@ class DeepRFLearner(object):
             q_graph:
             num_frames:
             reward_function: A function taking a dictionary of parameters and returning a double.
-                             Dictionary args include 'last_score', 'new_score', 'last_state', 'new_state', 'is_game_over'.
+                             Dictionary args include 'last_score', 'new_score', 'last_state', 'new_state',
+                              'is_game_over'.
             file_save_path:
         """
-        self.epsilon = 1.0
+        self.epsilon = 0.8
         self.gamma = 0.9
         self.file_save_path = file_save_path
 
         #  TODO: game.copy()
         assert(isinstance(game, SinglePlayerGame))
+        assert (isinstance(q_graph, QGraph))
         self._game = game
-        assert(isinstance(q_graph, QGraph))
         self._q_graph = q_graph
 
         self._num_frames = int(self._q_graph.q_input.get_shape()[-1])
 
         self._reward_function = reward_function
 
-
         self._experience_replay = []
-
 
         with self._q_graph.graph.as_default() as g:
             with g.name_scope("non_q_graph_ops"):
@@ -118,7 +117,7 @@ class DeepRFLearner(object):
             for __ in xrange(batch_size):
                 self._experience_replay.append(experience_tuple_generator.next())
             experience_batch = np.random.choice(self._experience_replay, batch_size, replace=False)
-            actions_batch = [self._game.action_dict[et.action] for et in experience_batch] # TODO: don't use this as an index
+            actions_batch = [self._game.action_dict[et.action] for et in experience_batch]
             states_batch = [et.state.to_array() for et in experience_batch]
             y_targets = self._get_target_values(experience_batch)
 
@@ -165,10 +164,10 @@ class DeepRFLearner(object):
 
             while not self._game.is_game_over():
                 action = self._get_action_with_noise(current_state)
-                last_score = self._game.get_score()
+                last_score = self._game.score
                 self._game.do_action(action)
                 new_state = current_state.new_state_from_old(self._game.get_frame())
-                new_score = self._game.get_score()
+                new_score = self._game.score
                 reward = self._reward_function({"last_score":last_score,
                                                 "new_score":new_score,
                                                "last_state":current_state,
@@ -182,7 +181,7 @@ class DeepRFLearner(object):
 
 
     def _get_action_with_noise(self, state):
-        if self.epsilon >= np.random.rand():
+        if np.random.rand() <= self.epsilon:
             return np.random.choice(self._game.action_list)
         else:
             return self.predict(X=state, type='action')
@@ -202,7 +201,7 @@ class DeepRFLearner(object):
         elif type == 'action':
             return_values = [
                 self._game.action_list[np.argmax(q_values[i, :])]
-                for i in range(q_values.shape[0])
+                for i in xrange(q_values.shape[0])
             ]
         else:
             raise NotImplementedError

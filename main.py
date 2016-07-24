@@ -18,7 +18,7 @@ my_q_graph = rf.QGraph.default_q_graph(my_game, num_frames=num_frames)
 
 def my_reward(params):
     return params['new_score'] - params['last_score'] + \
-           (0.0 if params['is_game_over'] else -1.0)
+           (-1.0 if params['is_game_over'] else 0.0)
 
 my_rf = rf.DeepRFLearner(my_game, my_q_graph, my_reward)
 
@@ -31,12 +31,19 @@ def play_one_game(deep_rf_learner):
                      range(num_frames - 1)]
     current_state = rf.State(frames_tuple=tuple(state_padding) + (first_frame,))
 
+    def print_frame_and_get_action(state):
+        print "\n" * 20 + str(game)
+        print "\nQ-val with actions: " + str(dict(zip(game.action_list,
+                                                      np.round(
+                                                          deep_rf_learner.predict(X=state),
+                                                          3))))
+        action = deep_rf_learner.predict(X=state, type='action')
+        print "Next Action: " + action
+        return action
+
+    action = print_frame_and_get_action(current_state)
+
     while True:
-
-        print board_to_string(game.get_frame().T)
-
-        action = deep_rf_learner.predict(X=current_state, type='action')
-
         r = raw_input("Press q to quit or Press r to reset: ")
         if r == 'q':
             break
@@ -44,22 +51,15 @@ def play_one_game(deep_rf_learner):
             return play_one_game(deep_rf_learner)
         else:
             game.do_action(action)
-            current_state = current_state.new_state_from_old(
-                game.get_frame())
-            q_values = deep_rf_learner.predict(X=current_state)
-            action = deep_rf_learner.predict(X=current_state, type='action')
-            print "\n\n\n\n\n\n\n"
-            print "Current Q Values: " + str(q_values)
-            print game.action_list
-            print "Next Action:" + action
+            current_state = current_state.new_state_from_old(game.get_frame())
+            action = print_frame_and_get_action(current_state)
     return
 
 
-
 while True:
-    my_rf.learn_q_function(num_iterations=500,
-                           batch_size=50,
-                           num_training_steps=10,
+    my_rf.learn_q_function(num_iterations=50,
+                           batch_size=1000,
+                           num_training_steps=100,
                            epsilon_multiplier=1.0)
     play_one_game(my_rf)
 
