@@ -122,9 +122,10 @@ class DeepRFLearner(object):
             y_targets = self._get_target_values(experience_batch)
 
             for __ in xrange(num_training_steps):
-                self._sess.run(self._optimizer, feed_dict={self._q_graph.q_input: states_batch,
-                                                             self._action_indices: actions_batch,
-                                                             self._y_obs: y_targets})
+                self._sess.run(self._optimizer,
+                               feed_dict={self._q_graph.q_input: states_batch,
+                                          self._action_indices: actions_batch,
+                                          self._y_obs: y_targets})
 
             self.epsilon *= epsilon_multiplier
 
