@@ -14,6 +14,7 @@ from single_player_game import SinglePlayerGame
 from q_graph import QGraph
 
 class ExperienceTuple:
+    """ ExperienceTuple data structure for DeepRFLearner """
     def __init__(self, state, action, reward, next_state):
         self.state = state
         self.action = action
@@ -36,24 +37,36 @@ class State:
         self.frames_tuple = frames_tuple
 
     def new_state_from_old(self, new_frame):
+        """ Return a new State object given a new_frame """
         return State(self.frames_tuple[1:] + (new_frame,))
 
     def to_array(self):
+        """ Return the state as a 3D ndarray """
         return np.dstack(self.frames_tuple)
 
 class DeepRFLearner(object):
+    """ DeepRFLearner Class
+
+    Args:
+        game:
+        q_graph:
+        num_frames:
+        reward_function:
+            A function taking a dictionary of parameters and returning a double.
+            Dict args include:
+            'last_score', 'new_score', 'last_state', 'new_state', 'is_game_over'.
+        file_save_path:
+
+    Methods:
+        get_next_experience_tuple:
+        choose_action:
+        evaluate_q_function:
+        learn_q_function:
+        save_tf_weights:
+
+    """
 
     def __init__(self, game, q_graph, reward_function, file_save_path=None):
-        """
-        Args:
-            game:
-            q_graph:
-            num_frames:
-            reward_function: A function taking a dictionary of parameters and returning a double.
-                             Dictionary args include 'last_score', 'new_score', 'last_state', 'new_state',
-                              'is_game_over'.
-            file_save_path:
-        """
         self.epsilon = 0.8
         self.gamma = 0.9
         self.file_save_path = file_save_path
@@ -154,6 +167,9 @@ class DeepRFLearner(object):
 
     def get_next_experience_tuple(self):
         """ Yield the Experience Tuple for training Q
+
+        DeepRFLearner chooses an action based on the Q function and random exploration
+
         yields:
           experience_tuple (Experience Tuple) - current state, action, reward, new_state
         """
@@ -164,7 +180,7 @@ class DeepRFLearner(object):
             current_state = State(tuple(state_padding) + (first_frame,))
 
             while not self._game.is_game_over():
-                action = self._get_action_with_noise(current_state)
+                action = self._choose_action_with_noise(current_state)
                 last_score = self._game.score
                 self._game.do_action(action)
                 new_state = current_state.new_state_from_old(self._game.get_frame())
@@ -181,35 +197,59 @@ class DeepRFLearner(object):
                 current_state = new_state
 
 
-    def _get_action_with_noise(self, state):
+    def _choose_action_with_noise(self, state):
         if np.random.rand() <= self.epsilon:
             return np.random.choice(self._game.action_list)
         else:
-            return self.predict(X=state, type='action')
+            return self.choose_action(state=state)
 
-    def predict(self, X, type='q_value'):
-        if isinstance(X, State):
-            q_state = np.array([X.to_array()])
-        elif isinstance(X, list):
-            q_state = np.array([state.to_array() for state in X])
+    def choose_action(self, state):
+        """ Return the action with the highest q_function value
+
+        Args:
+            state: A State object or list of State objects
+
+        Return:
+            actions: the action or list of actions that maximize
+              the q_function for each state
+        """
+        if isinstance(state, State):
+            actions = self.choose_action([state])
+            action = actions[0]
+            return action
+        elif isinstance(state, list):
+            q_values = self.evaluate_q_function(state=state)
+            actions = [
+                self._game.action_list[np.argmax(q_values[i, :])]
+                for i in xrange(q_values.shape[0])
+                ]
+            return actions
+        else:
+            return TypeError
+
+
+    def evaluate_q_function(self, state):
+        """ Return q_values for for given state(s)
+
+        Args:
+            state: A State object or list of State objects
+
+        Return:
+            q_values: An ndarray of size(action_list) for a state object
+                      An ndarray of # States by size(action_list) for a list
+
+        """
+        if isinstance(state, State):
+            q_state = np.array([state.to_array()])
+        elif isinstance(state, list):
+            q_state = np.array([state_i.to_array() for state_i in state])
         else:
             raise TypeError
 
         q_values = self._sess.run(self._q_graph.q_output,
                                   feed_dict={self._q_graph.q_input: q_state})
-        if type == "q_value":
-            return_values = q_values
-        elif type == 'action':
-            return_values = [
-                self._game.action_list[np.argmax(q_values[i, :])]
-                for i in xrange(q_values.shape[0])
-            ]
-        else:
-            raise NotImplementedError
-
-        if isinstance(X, State):
-            return return_values[0]
-        else:
-            return return_values
-
+        if isinstance(state, State):
+            return q_values[0]
+        elif isinstance(state, list):
+            return q_values
 

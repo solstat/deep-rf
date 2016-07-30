@@ -6,7 +6,6 @@ Test
 
 import numpy as np
 import snake.snake_game as snake
-from snake.ascii_snake import board_to_string
 import deep_rf as rf
 
 frame_height = 3
@@ -33,11 +32,10 @@ def play_one_game(deep_rf_learner):
 
     def print_frame_and_get_action(state):
         print "\n" * 20 + str(game)
-        print "\nQ-val with actions: " + str(dict(zip(game.action_list,
-                                                      np.round(
-                                                          deep_rf_learner.predict(X=state),
-                                                          3))))
-        action = deep_rf_learner.predict(X=state, type='action')
+        print "\nQ-val with actions: " + \
+            str(dict(zip(game.action_list,
+                np.round(deep_rf_learner.evaluate_q_function(state=state),3))))
+        action = deep_rf_learner.choose_action(state=state)
         print "Next Action: " + action
         return action
 

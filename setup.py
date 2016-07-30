@@ -10,7 +10,7 @@ config = {
     'description': 'This is a template',  # Replace with project description
     'author': 'solstat',
     'license': 'license',
-    'packages': ['snake'],  # Replace with package names
+    'packages': ['snake', 'deep_rf'],  # Replace with package names
     'ext_modules': [], # Cythonized Packages
     'scripts': [], # Scripts with #!/usr/bin/env python
 }
