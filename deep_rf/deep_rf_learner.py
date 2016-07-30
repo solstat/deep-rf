@@ -8,10 +8,10 @@ Does Deep Q-Learning for Snake
 # Import Modules
 import numpy as np
 import tensorflow as tf
-from operator import mul
 import os
 from single_player_game import SinglePlayerGame
 from q_graph import QGraph
+import epsilon_method
 
 class ExperienceTuple:
     """ ExperienceTuple data structure for DeepRFLearner """
@@ -66,8 +66,7 @@ class DeepRFLearner(object):
 
     """
 
-    def __init__(self, game, q_graph, reward_function, file_save_path=None):
-        self.epsilon = 0.8
+    def __init__(self, game, q_graph, reward_function, random_move_iterator=None, file_save_path=None):
         self.gamma = 0.9
         self.file_save_path = file_save_path
 
@@ -82,6 +81,12 @@ class DeepRFLearner(object):
         self._reward_function = reward_function
 
         self._experience_replay = []
+
+        if random_move_iterator is None:
+            self._random_move_iterator = epsilon_method.create_geometric_iterator(
+                mu=0.001, multiplier=1.005, upper_bound=10)
+        else:
+            self._random_move_iterator = random_move_iterator
 
         with self._q_graph.graph.as_default() as g:
             with g.name_scope("non_q_graph_ops"):
@@ -117,7 +122,7 @@ class DeepRFLearner(object):
 
 
     def learn_q_function(self, num_iterations=1000, batch_size=50,
-                         num_training_steps=10, epsilon_multiplier=1.0):
+                         num_training_steps=10):
         # For Training Time
             # Get next sample -> List of ExperienceTuples
             # Get a minibatch -> partially Optimize Q for loss
@@ -139,8 +144,6 @@ class DeepRFLearner(object):
                                feed_dict={self._q_graph.q_input: states_batch,
                                           self._action_indices: actions_batch,
                                           self._y_obs: y_targets})
-
-            self.epsilon *= epsilon_multiplier
 
         return
 
@@ -198,7 +201,7 @@ class DeepRFLearner(object):
 
 
     def _choose_action_with_noise(self, state):
-        if np.random.rand() <= self.epsilon:
+        if self._random_move_iterator.next():
             return np.random.choice(self._game.action_list)
         else:
             return self.choose_action(state=state)

@@ -57,7 +57,7 @@ class SnakeGame(SinglePlayerGame):
 
 
     def score_pellet(self):
-        # self.snake.grow()
+        self.snake.grow()
         self._new_random_pellet()
         self._score += 1
 

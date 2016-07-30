@@ -8,8 +8,8 @@ import numpy as np
 import snake.snake_game as snake
 import deep_rf as rf
 
-frame_height = 3
-frame_width = 3
+frame_height = 4
+frame_width = 4
 num_frames = 2
 
 my_game = snake.SnakeGame(board_height=frame_height, board_width=frame_width)
@@ -17,7 +17,7 @@ my_q_graph = rf.QGraph.default_q_graph(my_game, num_frames=num_frames)
 
 def my_reward(params):
     return params['new_score'] - params['last_score'] + \
-           (-1.0 if params['is_game_over'] else 0.0)
+           (-1.0 if params['is_game_over'] else 0.0) - .001
 
 my_rf = rf.DeepRFLearner(my_game, my_q_graph, my_reward)
 
@@ -34,7 +34,7 @@ def play_one_game(deep_rf_learner):
         print "\n" * 20 + str(game)
         print "\nQ-val with actions: " + \
             str(dict(zip(game.action_list,
-                np.round(deep_rf_learner.evaluate_q_function(state=state),3))))
+                np.round(deep_rf_learner.evaluate_q_function(state=state), 3))))
         action = deep_rf_learner.choose_action(state=state)
         print "Next Action: " + action
         return action
@@ -57,7 +57,6 @@ def play_one_game(deep_rf_learner):
 while True:
     my_rf.learn_q_function(num_iterations=50,
                            batch_size=1000,
-                           num_training_steps=100,
-                           epsilon_multiplier=1.0)
+                           num_training_steps=100)
     play_one_game(my_rf)
 

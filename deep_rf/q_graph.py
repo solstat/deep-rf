@@ -32,7 +32,7 @@ class QGraph(object):
 
             w_conv1 = cls._filter_variable(2, 2,
                                            in_channels=int(q_input.get_shape()[-1]),
-                                           out_channels=8)
+                                           out_channels=16)
             h_conv1 = tf.nn.relu(cls._conv2d(q_input, w_conv1, stride=1))
 
             w_conv2 = cls._filter_variable(1, 1,
