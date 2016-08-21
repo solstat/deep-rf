@@ -2,9 +2,10 @@
 
 deep-rf is an open source Python module for Deep Reinforcement Learning built on top of Tensorflow intended for training deep networks to play games.
 
+
 A typical training session looks like this:
 
-#### Step 1:  The game
+#### Step 1:  Game
 ```python
 import deep_rf as rf
 
@@ -15,7 +16,7 @@ class MyGame(rf.SinglePlayerGame):
 my_game = MyGame(frame_height=20, frame_width=20)
 ```
 
-#### Step 2:  The deep network
+#### Step 2:  Deep network with Tensorflow
 ```python
 # use one of our predefined deep networks
 my_q_graph = tf.QGraph.default_q_graph(my_game, num_frames=4)
@@ -36,7 +37,7 @@ my_q_graph = tf.QGraph(q_input=my_input, q_output=my_output)
 ```
 
 #### Step 3:  Reward function
-```
+```python
 #  define function that takes a dictionary of params and returns a numerical value
 def my_reward(params):
   ...
@@ -65,10 +66,26 @@ my_rf.save_tf_weights(file_path=MY_FILE_PATH)
 
 See the `notebooks` folder for examples.
 
+## Install
 
+You can install our module using
+```
+pip install git+https://github.com/solstat/snake_learning.git
+```
+
+or clone it directly here
+```
+git clone https://github.com/solstat/snake_learning.git
+```
+
+## Dependencies
+
+
+## About
 
 The project was started in 2016 and was the first project by the Solstat group.  For a complete list of authors, see the `AUTHORS` file.
 
+deep-rf is released under the 
 
 
 <!-- 
