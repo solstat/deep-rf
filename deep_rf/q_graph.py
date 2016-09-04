@@ -3,9 +3,19 @@ import numpy as np
 from operator import mul
 
 class QGraph(object):
-    """
-        q_input: (tf.placeholder float [None, board_height, board_width, num_frames]) - tf placeholder for state
-        q_output: (tf.Tensor of action_values [None, num_actions]) - Q function output to evaluated with tf.run()
+    """ Tensorflow Graph for the Q Function
+
+        Parameters:
+            q_input (tf.placeholder float [None, board_height, board_width, num_frames]):
+                tf placeholder for state
+            q_output (tf.Tensor of action_values [None, num_actions]):
+                Q function output to evaluated with tf.run()
+
+        Attributes:
+            q_input
+            q_output
+            graph
+            var_list
 
     """
     def __init__(self, q_input, q_output):
@@ -18,6 +28,10 @@ class QGraph(object):
     @classmethod
     def default_q_graph(cls, game, num_frames):
         """ initialize Q function input & output
+
+            Parameters:
+                game (SinglePlayerGame): a game object
+                num_frames (int): number of past frames to keep in memory
 
             Returns:
                 QGraph: a q graph
