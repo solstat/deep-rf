@@ -4,12 +4,38 @@ deep_rf package
 Submodules
 ----------
 
-.. toctree::
+deep_rf.deep_rf_learner module
+------------------------------
 
-   deep_rf.deep_rf_learner
-   deep_rf.epsilon_method
-   deep_rf.q_graph
-   deep_rf.single_player_game
+.. automodule:: deep_rf.deep_rf_learner
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+deep_rf.epsilon_method module
+-----------------------------
+
+.. automodule:: deep_rf.epsilon_method
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+deep_rf.q_graph module
+----------------------
+
+.. automodule:: deep_rf.q_graph
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+deep_rf.single_player_game module
+---------------------------------
+
+.. automodule:: deep_rf.single_player_game
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 
 Module contents
 ---------------

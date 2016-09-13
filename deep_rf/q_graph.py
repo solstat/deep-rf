@@ -3,19 +3,19 @@ import _utils
 
 
 class QGraph(object):
-    """ Tensorflow Graph for the Q Function
+    """ Data structure for the Q Function
 
-        Parameters:
+        Args:
             q_input (tf.placeholder float [None, board_height, board_width, num_frames]):
-                tf placeholder for state
+                tf placeholder for frame input
             q_output (tf.Tensor of action_values [None, num_actions]):
                 Q function output to evaluated with tf.run()
 
         Attributes:
-            q_input
-            q_output
-            graph
-            var_list
+            q_input (tf.placeholder) : input to Q function
+            q_output (tf.Tensor): Q function output
+            graph (tf.Graph): tensorflow graph containing the Q function
+            var_list (list): list of names for Q function weights
 
     """
     def __init__(self, q_input, q_output):
@@ -34,7 +34,7 @@ class QGraph(object):
                 num_frames (int): number of past frames to keep in memory
 
             Returns:
-                QGraph: a q graph
+                QGraph (QGraph): a q graph
         """
 
         g = tf.Graph()

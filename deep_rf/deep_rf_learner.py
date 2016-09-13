@@ -14,7 +14,18 @@ from q_graph import QGraph
 import epsilon_method
 
 class ExperienceTuple:
-    """ ExperienceTuple data structure for DeepRFLearner """
+    """ ExperienceTuple data structure for DeepRFLearner
+
+    A data structure for keeping track of <State, Action, Reward, Next State>
+    tuples. These tuples are used in learning the Q function.
+
+    Args:
+        state (State): a collection of frames
+        action (int): an action taken
+        reward (double): measured reward for taking the selected action
+        next_state (State): the set of frames after taking the selected action
+
+    """
     def __init__(self, state, action, reward, next_state):
         self.state = state
         self.action = action
@@ -48,21 +59,21 @@ class DeepRFLearner(object):
     """ DeepRFLearner Class
 
     Args:
-        game:
-        q_graph:
-        num_frames:
-        reward_function:
+        game (SinglePlayerGame): single player game to learn
+        q_graph (QGraph): tensorflow Q graph
+        num_frames (int): number of frames to use as the state
+        reward_function (func):
             A function taking a dictionary of parameters and returning a double.
             Dict args include:
             'last_score', 'new_score', 'last_state', 'new_state', 'is_game_over'.
-        file_save_path:
+        file_save_path (string): path to save location
 
     Methods:
-        get_next_experience_tuple:
-        choose_action:
-        evaluate_q_function:
-        learn_q_function:
-        save_tf_weights:
+        * get_next_experience_tuple
+        * choose_action
+        * evaluate_q_function
+        * learn_q_function
+        * save_tf_weights
 
     """
 
@@ -108,6 +119,7 @@ class DeepRFLearner(object):
 
 
     def save_tf_weights(self):
+        """ Save the Q-network weights """
         if self.file_save_path is not None:
             self._saver.save(self._sess, self.file_save_path)
 
@@ -123,6 +135,21 @@ class DeepRFLearner(object):
 
     def learn_q_function(self, num_iterations=1000, batch_size=50,
                          num_training_steps=10):
+        """ Learn deep reinforcement learning Q function.
+
+        Train the Q function by repeatedly playing the single player game.
+
+        Args:
+            num_iterations (int): number of training iterations
+            batch_size (int): number of experience tuples to add in each step
+            num_training_steps (int):
+                number of optimization steps to take in each iteration.
+
+        Returns:
+            None: updates the Q function
+
+        """
+
         # For Training Time
             # Get next sample -> List of ExperienceTuples
             # Get a minibatch -> partially Optimize Q for loss
@@ -150,10 +177,10 @@ class DeepRFLearner(object):
     def _get_target_values(self, experience_batch):
         """
         Args:
-            experience_batch:  list of ExperienceTuples
+            experience_batch (list):  list of ExperienceTuples
 
         Returns:
-            y_target:   np.ndarray of [batch_size, r + max Q(s')]
+            y_target (ndarray): ndarray of [batch_size, r + max Q(s')]
         """
         rewards = np.array([et.reward for et in experience_batch])
         states = [
@@ -173,8 +200,8 @@ class DeepRFLearner(object):
 
         DeepRFLearner chooses an action based on the Q function and random exploration
 
-        yields:
-          experience_tuple (Experience Tuple) - current state, action, reward, new_state
+        Yields:
+          experience_tuple (ExperienceTuple): current state, action, reward, new_state
         """
         while True:
             self._game.reset()
@@ -210,10 +237,10 @@ class DeepRFLearner(object):
         """ Return the action with the highest q_function value
 
         Args:
-            state: A State object or list of State objects
+            state (State): A State object or list of State objects
 
         Return:
-            actions: the action or list of actions that maximize
+            actions (Action): the action or list of actions that maximize
               the q_function for each state
         """
         if isinstance(state, State):
@@ -235,11 +262,12 @@ class DeepRFLearner(object):
         """ Return q_values for for given state(s)
 
         Args:
-            state: A State object or list of State objects
+            state (State): A State object or list of State objects
 
         Return:
-            q_values: An ndarray of size(action_list) for a state object
-                      An ndarray of # States by size(action_list) for a list
+            q_values (ndarray): Either
+                * An ndarray of size(action_list) for a state object
+                * An ndarray of # States by size(action_list) for a list
 
         """
         if isinstance(state, State):
