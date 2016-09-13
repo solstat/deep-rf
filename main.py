@@ -56,7 +56,7 @@ def play_one_game(deep_rf_learner):
 
 while True:
     my_rf.learn_q_function(num_iterations=50,
-                           batch_size=1000,
+                           batch_size=100,
                            num_training_steps=100)
     play_one_game(my_rf)
 

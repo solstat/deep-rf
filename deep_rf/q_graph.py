@@ -1,6 +1,6 @@
 import tensorflow as tf
-import numpy as np
-from operator import mul
+import _utils
+
 
 class QGraph(object):
     """ Tensorflow Graph for the Q Function
@@ -25,8 +25,8 @@ class QGraph(object):
         self.var_list = self.graph.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
 
 
-    @classmethod
-    def default_q_graph(cls, game, num_frames):
+    @staticmethod
+    def default_q_graph(game, num_frames):
         """ initialize Q function input & output
 
             Parameters:
@@ -40,57 +40,42 @@ class QGraph(object):
         g = tf.Graph()
 
         with g.as_default():
-            q_input = tf.placeholder(tf.float32, [None, game.frame_height,
-                                                  game.frame_width,
-                                                  num_frames])
+            # input layer
+            q_input = tf.placeholder(dtype=tf.float32,
+                                     shape=[None, game.frame_height,
+                                            game.frame_width, num_frames])
 
-            w_conv1 = cls._filter_variable(2, 2,
-                                           in_channels=int(q_input.get_shape()[-1]),
-                                           out_channels=16)
-            h_conv1 = tf.nn.relu(cls._conv2d(q_input, w_conv1, stride=1))
+            # hidden convolutional layer 1
+            w_conv1 = _utils.init_conv_filter(filter_height=2,
+                                              filter_width=2,
+                                              in_channels=int(q_input.get_shape()[-1]),
+                                              out_channels=16)
+            h_conv1 = tf.nn.relu(_utils.conv2d(input=q_input,
+                                               filter=w_conv1,
+                                               stride=1))
 
-            w_conv2 = cls._filter_variable(1, 1,
-                                           in_channels=int(w_conv1.get_shape()[-1]),
-                                           out_channels=8)
-            h_conv2 = tf.nn.relu(cls._conv2d(h_conv1, w_conv2, stride=1))
+            # hidden convolutional layer 2
+            w_conv2 = _utils.init_conv_filter(1, 1, int(w_conv1.get_shape()[-1]), 8)
+            h_conv2 = tf.nn.relu(_utils.conv2d(h_conv1, w_conv2, 1))
 
-            w_conv3 = cls._filter_variable(1, 1,
-                                           in_channels=int(w_conv2.get_shape()[-1]),
-                                           out_channels=8)
-            h_conv3 = tf.nn.relu(cls._conv2d(h_conv2, w_conv3, stride=1))
+            # hidden convolutional layer 3
+            w_conv3 = _utils.init_conv_filter(1, 1, int(w_conv2.get_shape()[-1]), 8)
+            h_conv3 = tf.nn.relu(_utils.conv2d(h_conv2, w_conv3, 1))
 
-            dim_conv3 = int(reduce(mul, h_conv3.get_shape()[1:]))
-            q_state_flat = tf.reshape(h_conv3, [-1, dim_conv3])
-            w_fc1 = cls._matmul_variable(dim_conv3, dim_conv3)
-            b_fc1 = cls._bias_variable(dim_conv3)
-            h_fc1 = tf.nn.relu(tf.matmul(q_state_flat, w_fc1) + b_fc1)
+            # reshape convolutional layer from 4D -> 2D tensor
+            h_conv3_flat = _utils.flatten_4d_to_2d(h_conv3)
+            len_h_conv3 = int(h_conv3_flat.get_shape()[-1])
 
-            w_out = cls._matmul_variable(dim_conv3, len(game.action_list))
-            b_out = cls._bias_variable(len(game.action_list))
-            q_output = tf.matmul(h_fc1, w_out) + b_out
+            # hidden fully connected layer 1
+            w_fc1 = _utils.init_fc_weights(height=len_h_conv3,
+                                           width=len_h_conv3)
+            b_fc1 = _utils.init_fc_bias(length=len_h_conv3)
+            h_fc1 = tf.nn.relu(tf.matmul(h_conv3_flat, w_fc1) + b_fc1)
+
+            # output = fully connected layer 2
+            w_fc2 = _utils.init_fc_weights(height=len_h_conv3,
+                                           width=len(game.action_list))
+            b_fc2 = _utils.init_fc_bias(length=len(game.action_list))
+            q_output = tf.matmul(h_fc1, w_fc2) + b_fc2
 
         return QGraph(q_input, q_output)
-
-
-    @staticmethod
-    def _filter_variable(filter_height, filter_width, in_channels, out_channels):
-        initial = tf.truncated_normal(shape=[filter_height, filter_width, in_channels, out_channels],
-                                      stddev=0.1, mean=0.0)
-        return tf.Variable(initial)
-
-
-    @staticmethod
-    def _matmul_variable(height, width):
-        initial = tf.truncated_normal(shape=[height, width], stddev=0.1, mean=0.0)
-        return tf.Variable(initial)
-
-
-    @staticmethod
-    def _bias_variable(out_channels):
-        initial = tf.constant(0.01, shape=[out_channels])
-        return tf.Variable(initial)
-
-
-    @staticmethod
-    def _conv2d(x, W, stride):
-        return tf.nn.conv2d(x, W, strides=[1, stride, stride, 1], padding='VALID')
