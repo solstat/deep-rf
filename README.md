@@ -19,7 +19,7 @@ my_game = MyGame(frame_height=20, frame_width=20)
 #### Step 2:  Deep network with Tensorflow
 ```python
 # use one of our predefined deep networks
-my_q_graph = tf.QGraph.default_q_graph(my_game, num_frames=4)
+my_q_graph = rf.QGraph.default_q_graph(my_game, num_frames=4)
 ```
 
 ```python
