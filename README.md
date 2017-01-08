@@ -1,6 +1,6 @@
 # deep-rf
 
-deep-rf is an open source Python module for Deep Reinforcement Learning built on top of Tensorflow intended for training deep networks to play games.
+deep-rf is an open source Python module for Deep Reinforcement Learning built on top of Tensorflow intended for training deep networks to play games.  
 
 
 A typical training session looks like this:
@@ -63,7 +63,6 @@ while True:
 my_rf.save_tf_weights(file_path=MY_FILE_PATH)
 ```
 
-
 See the `notebooks` folder for examples.
 
 ## Install
@@ -73,20 +72,24 @@ You can install our module using
 pip install git+https://github.com/solstat/snake_learning.git
 ```
 
-or clone it directly here
+or clone the repo directly here
 ```
 git clone https://github.com/solstat/snake_learning.git
 ```
 
 ## Dependencies
 
+deep-rf requires:
+
+- Python 2.7.11
+- NumPy 1.11.0
+- Tensorflow 0.8.0 
 
 ## About
 
-The project was started in 2016 and was the first project by the Solstat group.  For a complete list of authors, see the `AUTHORS` file.
+The Solstat group started this project in 2016 as a learning exercise for deep reinforcement learning and Tensorflow.  For a complete list of authors, see the `AUTHORS` file.
 
-deep-rf is released under the 
-
+deep-rf is released under version 3 of the GNU Public License as published by the Free Software Foundation. See `LICENSE` or <http://www.gnu.org/licenses/> for more info.
 
 <!-- 
 
