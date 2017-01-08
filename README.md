@@ -65,18 +65,6 @@ my_rf.save_tf_weights(file_path=MY_FILE_PATH)
 
 See the `notebooks` folder for examples.
 
-## Install
-
-You can install our module using
-```
-pip install git+https://github.com/solstat/snake_learning.git
-```
-
-or clone the repo directly here
-```
-git clone https://github.com/solstat/snake_learning.git
-```
-
 ## Dependencies
 
 deep-rf requires:
