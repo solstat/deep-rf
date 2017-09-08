@@ -1,3 +1,8 @@
+#
+# Author: Christopher Aicher <aicherc@uw.edu>
+# License: BSD 3 clause
+#
+
 import numpy as np
 import snake.snake_game as snake
 import deep_rf as rf

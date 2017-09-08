@@ -1,13 +1,24 @@
+#
+# Abstract base class for SinglePlayerGames.
+# For deep_rf learners to play well with a provided game, recommended
+# extending this class and implementing the specified methods.
+#
+# Authors:
+#    Christopher Aicher <aicherc@uw.edu>
+#    Luca Weihs <lucaw@uw.edu>
+#    Kyle Lo <kyleclo@uw.edu>
+#    Wesley Lee <wtlee@uw.edu>
+#
+# License: BSD 3 clause
+#
+
+
 import tensorflow as tf
-import _utils
+import util
 
 
 class QGraph(object):
     """Stores input and output Tensors of Graph representing Q-function.
-
-    QGraph constructor takes two sets of parameters:
-        1. If defining own Graph structure, provide q_input and q_output
-        2. If using predefined Graph, provide name and necessary inputs
 
     Parameters
     ----------
@@ -16,22 +27,6 @@ class QGraph(object):
 
     q_output: tf.Tensor, shape = [None, num_actions]
         Tensor of batch_size output vectors containing Q-values for each action.
-
-    name : str, 'snake_default'
-        Specify the name of a predefined Tensorflow Graph structure.
-
-    frame_height : int
-        For predefined Graph
-
-    frame_width : int
-        For predefined Graph
-
-    num_frames : int
-        For predefined Graph
-
-    num_actions: int
-        For predefined Graph
-
 
     Attributes
     ----------
@@ -46,81 +41,97 @@ class QGraph(object):
 
     var_list : list of str
         Contains names of trainable variables in Graph.
-
     """
 
-    def __init__(self, **kwargs):
-        if 'name' in kwargs:
-            name = kwargs['name']
-            frame_height = kwargs['frame_height']
-            frame_width = kwargs['frame_width']
-            num_frames = kwargs['num_frames']
-            num_actions = kwargs['num_actions']
-
-            if name == 'snake_default':
-                self.q_input, self.q_output = QGraph.create_snake_default(
-                    frame_height, frame_width, num_frames, num_actions)
-            else:
-                raise Exception('No predefined QGraph with this name.')
-
-        elif 'q_input' in kwargs and 'q_output' in kwargs:
-            self.q_input = kwargs['q_input']
-            self.q_output = kwargs['q_output']
-
-        else:
-            raise Exception(
-                'Either provide q_input & q_output or choose a predefined Graph.')
-
+    def __init__(self, q_input, q_output):
+        self.q_input = q_input
+        self.q_output = q_output
         self.graph = self.q_input.graph
-        self.var_list = self.graph.get_collection(
-            tf.GraphKeys.TRAINABLE_VARIABLES)
+        self.var_list = self.graph.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
 
     @staticmethod
-    def create_snake_default(frame_height, frame_width, num_frames,
-                             num_actions):
-        """3 conv + 2 fc layers. Using 16->8->8 2x2 kernels."""
-        g = tf.Graph()
+    def create_3conv2fc(game, num_frames, params):
+        """3 convolutional and 2 fully connected layers w/ ReLu activation
 
+        Parameters
+        ----------
+        game: SinglePlayerGame
+
+        num_frames : int
+
+        params: dict
+
+            Keywords:
+                'filter': list of 2 ints [kernel_height, kernel_width],
+                'out' int representing number of out_channels of kernel,
+                'stride' int representing number of kernel strides
+
+            Example:
+                params = {
+                    'filter1': [2, 2], 'out1': 16, 'stride1': 1,
+                    'filter2': [1, 1], 'out2': 8, 'stride2': 1,
+                    'filter3': [1, 1], 'out3': 8, 'stride3': 1,
+                    'out4':
+                }
+        """
+
+        frame_height = game.frame_height
+        frame_width = game.frame_width
+        num_actions = len(game.action_list)
+
+        g = tf.Graph()
         with g.as_default():
+
             # input layer
             q_input = tf.placeholder(dtype=tf.float32,
-                                     shape=[None, frame_height,
-                                            frame_width, num_frames])
+                                     shape=[None,
+                                            frame_height,
+                                            frame_width,
+                                            num_frames])
 
             # hidden convolutional layer 1
-            w_conv1 = _utils.init_conv_filter(filter_height=2,
-                                              filter_width=2,
-                                              in_channels=int(
-                                                  q_input.get_shape()[-1]),
-                                              out_channels=16)
-            h_conv1 = tf.nn.relu(_utils.conv2d(input=q_input,
-                                               filter=w_conv1,
-                                               stride=1))
+            w_conv1 = util.init_conv_filter(filter_height=params['filter1'][0],
+                                            filter_width=params['filter1'][1],
+                                            in_channels=int(q_input.get_shape()[-1]),
+                                            out_channels=params['out1'])
+            h_conv1 = tf.nn.relu(util.conv2d(input=q_input,
+                                             filter=w_conv1,
+                                             stride=params['stride1']))
 
             # hidden convolutional layer 2
-            w_conv2 = _utils.init_conv_filter(1, 1,
-                                              int(w_conv1.get_shape()[-1]), 8)
-            h_conv2 = tf.nn.relu(_utils.conv2d(h_conv1, w_conv2, 1))
+            w_conv2 = util.init_conv_filter(filter_height=params['filter2'][0],
+                                            filter_width=params['filter2'][1],
+                                            in_channels=int(w_conv1.get_shape()[-1]),
+                                            out_channels=params['out2'])
+            h_conv2 = tf.nn.relu(util.conv2d(input=h_conv1,
+                                             filter=w_conv2,
+                                             stride=params['stride2']))
 
             # hidden convolutional layer 3
-            w_conv3 = _utils.init_conv_filter(1, 1,
-                                              int(w_conv2.get_shape()[-1]), 8)
-            h_conv3 = tf.nn.relu(_utils.conv2d(h_conv2, w_conv3, 1))
+            w_conv3 = util.init_conv_filter(filter_height=params['filter3'][0],
+                                            filter_width=params['filter3'][1],
+                                            in_channels=int(w_conv2.get_shape()[-1]),
+                                            out_channels=params['out3'])
+            h_conv3 = tf.nn.relu(util.conv2d(input=h_conv2,
+                                             filter=w_conv3,
+                                             stride=params['stride3']))
 
             # reshape convolutional layer from 4D -> 2D tensor
-            h_conv3_flat = _utils.flatten_4d_to_2d(h_conv3)
+            h_conv3_flat = util.flatten_4d_to_2d(h_conv3)
             len_h_conv3 = int(h_conv3_flat.get_shape()[-1])
 
             # hidden fully connected layer 1
-            w_fc1 = _utils.init_fc_weights(height=len_h_conv3,
-                                           width=len_h_conv3)
-            b_fc1 = _utils.init_fc_bias(length=len_h_conv3)
+            w_fc1 = util.init_fc_weights(height=len_h_conv3,
+                                         width=len_h_conv3)
+            b_fc1 = util.init_fc_bias(length=len_h_conv3)
             h_fc1 = tf.nn.relu(tf.matmul(h_conv3_flat, w_fc1) + b_fc1)
 
             # output = fully connected layer 2
-            w_fc2 = _utils.init_fc_weights(height=len_h_conv3,
-                                           width=num_actions)
-            b_fc2 = _utils.init_fc_bias(length=num_actions)
+            w_fc2 = util.init_fc_weights(height=len_h_conv3,
+                                         width=num_actions)
+            b_fc2 = util.init_fc_bias(length=num_actions)
             q_output = tf.matmul(h_fc1, w_fc2) + b_fc2
 
-        return q_input, q_output
+        q_graph = QGraph(q_input, q_output)
+        return q_graph
+

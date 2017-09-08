@@ -1,19 +1,27 @@
-"""
+# Snake implementation of a SinglePlayerGame
+#
+# Authors:
+#    Christopher Aicher <aicherc@uw.edu>
+#    Luca Weihs <lucaw@uw.edu>
+#    Kyle Lo <kyleclo@uw.edu>
+#    Wesley Lee <wtlee@uw.edu>
+#
+# License: BSD 3 clause
+#
 
-Single Player Game class
-
-"""
 
 import numpy as np
 from deep_rf import SinglePlayerGame
 
 _SNAKE_ACTION_LIST = ['UP', 'DOWN', 'LEFT', 'RIGHT']
 
+
 class SnakeGame(SinglePlayerGame):
     def __init__(self, board_height=20, board_width=20):
-        SinglePlayerGame.__init__(self, action_list=_SNAKE_ACTION_LIST,
-                                  frame_height = board_height,
-                                  frame_width = board_width)
+        SinglePlayerGame.__init__(self,
+                                  action_list=_SNAKE_ACTION_LIST,
+                                  frame_height=board_height,
+                                  frame_width=board_width)
 
         self.initial_location = {'x': np.floor(self.frame_width / 2),
                                  'y': np.floor(self.frame_height / 2)}
@@ -23,14 +31,12 @@ class SnakeGame(SinglePlayerGame):
         self._new_random_pellet()
         self._score = 0
 
-
     @property
     def score(self):
         return self._score
 
-
     def do_action(self, action):
-        assert(isinstance(action, basestring))
+        assert (isinstance(action, basestring))
         prev_direction = self.snake.direction
         new_direction = action
 
@@ -42,12 +48,11 @@ class SnakeGame(SinglePlayerGame):
         if is_180:
             new_direction = prev_direction
 
-        #  Do action
+        # Do action
         self.snake.direction = new_direction
         self.snake.move()
         if self.is_pellet_scored():
             self.score_pellet()
-
 
     def is_pellet_scored(self):
         head = self.snake.body[0]
@@ -55,19 +60,18 @@ class SnakeGame(SinglePlayerGame):
             return True
         return False
 
-
     def score_pellet(self):
         self.snake.grow()
         self._new_random_pellet()
         self._score += 1
-
 
     def _new_random_pellet(self):
         # Find valid pellet locations
         invalid_pellet_points = self.snake.body
         valid_pellet_points = np.ones((self.frame_width, self.frame_height))
         for invalid_point in invalid_pellet_points:
-            valid_pellet_points[int(invalid_point['x']), int(invalid_point['y'])] = 0
+            valid_pellet_points[
+                int(invalid_point['x']), int(invalid_point['y'])] = 0
         valid_x, valid_y = np.where(valid_pellet_points == 1)
 
         # Sample one uniformly at random
@@ -82,7 +86,6 @@ class SnakeGame(SinglePlayerGame):
             'y': valid_y[int(new_point_index)]
         }
 
-
     def get_frame(self):
         frame = np.zeros((self.frame_width, self.frame_height))
         for snake_point in self.snake.body:
@@ -90,7 +93,6 @@ class SnakeGame(SinglePlayerGame):
                 frame[int(snake_point['x']), int(snake_point['y'])] = 1
         frame[int(self.pellet['x']), int(self.pellet['y'])] = 2
         return frame
-
 
     def _is_in_board(self, point):
         if point['x'] < 0:
@@ -103,10 +105,8 @@ class SnakeGame(SinglePlayerGame):
             return False
         return True
 
-
     def get_score(self):
         return self.score
-
 
     def is_game_over(self):
         if self._is_wall_collision():
@@ -114,7 +114,6 @@ class SnakeGame(SinglePlayerGame):
         elif self.snake.is_self_collision() and len(self.snake.body) > 2:
             return True
         return False
-
 
     def _is_wall_collision(self):
         head = self.snake.body[0]
@@ -124,14 +123,12 @@ class SnakeGame(SinglePlayerGame):
             return True
         return False
 
-
     def reset(self):
         self.initial_location = {'x': np.floor(self.frame_width / 2),
                                  'y': np.floor(self.frame_height / 2)}
         self.snake = Snake(self.initial_location)
         self._new_random_pellet()
         self._score = 0
-
 
     def __str__(self):
         b = self.get_frame().T
@@ -160,14 +157,17 @@ class Snake(object):
     """
         Args:
             initial_location (dictionary {'x': int, 'y': int})
+
         Attributes:
             body (list of dictionaries {'x': int, 'y': int})
             direction (int from action_dict)
+
         Methods:
             move - move body in direction
             grow - append point to end of body
             is_self_collision - check if snake has collided with itself
     """
+
     def __init__(self, initial_location):
         self.body = [initial_location]
         self._direction = 'UP'
@@ -179,7 +179,7 @@ class Snake(object):
 
     @direction.setter
     def direction(self, value):
-        assert(value in self._direction_set)
+        assert (value in self._direction_set)
         self._direction = value
 
     def move(self):

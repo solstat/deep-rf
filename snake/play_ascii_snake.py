@@ -1,6 +1,9 @@
-"""
-Game Driver
-"""
+#
+# Script for playing Snake game in terminal
+#
+# Author: Luca Weihs <lucaw@uw.edu>
+# License: BSD 3 clause
+#
 
 from snake.snake_game import SnakeGame
 import sys, tty, termios, select, time

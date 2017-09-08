@@ -1,3 +1,8 @@
+#
+# Author: Christopher Aicher <aicherc@uw.edu>
+# License: BSD 3 clause
+#
+
 import numpy as np
 from deep_rf.single_player_game import SinglePlayerGame
 from matplotlib import cm

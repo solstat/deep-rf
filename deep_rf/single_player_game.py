@@ -1,10 +1,14 @@
-"""
-
-Single Player Game class
-
-"""
-
-
+#
+#  Abstract base class for SinglePlayerGames.
+# For deep_rf learners to play well with a provided game, recommended
+# extending this class and implementing the specified methods.
+#
+# Authors:
+#   Kyle Lo <kyleclo@uw.edu>
+#   Wesley Lee <wtlee@uw.edu>
+#
+# License: BSD 3 clause
+#
 
 class SinglePlayerGame:
     def __init__(self, action_list, frame_height, frame_width):

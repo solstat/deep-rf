@@ -1,3 +1,14 @@
+#
+# Epsilon method
+#
+# Authors:
+#   Christopher Aicher <aicherc@uw.edu>
+#   Luca Weihs <lucaw@uw.edu>
+#
+# License: BSD 3 clause
+#
+
+
 import numpy as np
 
 

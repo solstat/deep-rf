@@ -1,27 +1,48 @@
-"""
+#
+# Full example on Snake
+#
+# Authors:
+#    Christopher Aicher <aicherc@uw.edu>
+#    Luca Weihs <lucaw@uw.edu>
+#    Kyle Lo <kyleclo@uw.edu>
+#    Wesley Lee <wtlee@uw.edu>
+#
+# License: BSD 3 clause
+#
 
-Test
-
-"""
 
 import numpy as np
 import snake.snake_game as snake
 import deep_rf as rf
 
-frame_height = 4
-frame_width = 4
-num_frames = 2
+frame_height = 10
+frame_width = 10
+num_frames = 4
+params = {
+    'filter1': [2, 2], 'out1': 16, 'stride1': 1,
+    'filter2': [1, 1], 'out2': 8, 'stride2': 1,
+    'filter3': [1, 1], 'out3': 8, 'stride3': 1
+}
 
-my_game = snake.SnakeGame(board_height=frame_height, board_width=frame_width)
-my_q_graph = rf.QGraph(name='snake_default', frame_height=frame_height,
-                       frame_width=frame_width, num_frames=num_frames,
-                       num_actions=len(my_game.action_list))
+my_game = snake.SnakeGame(board_height=frame_height,
+                          board_width=frame_width)
 
+my_q_graph = rf.QGraph.create_3conv2fc(game=my_game,
+                                       num_frames=num_frames,
+                                       params=params)
+list_viable = ['']
+def check_user_reward(user_reward):
+    list_of_user_inputs = extract(user_reward)
+    for key in list_of_user_inputs:
+        if key not in list_viable:
+            raise Exception
 
-def my_reward(params):
-    return params['new_score'] - params['last_score'] + \
-           (-1.0 if params['is_game_over'] else 0.0) - .001
+def dumb_user_reward(last, something_dumb):
+    kwargs['something dumb']
 
+def my_reward(last_score, new_score, last_state, new_state, is_game_over):
+    reward = new_score - last_score + (-1.0 if is_game_over else 0.0) - 0.001
+    return reward
 
 my_rf = rf.DeepRFLearner(my_game, my_q_graph, my_reward)
 

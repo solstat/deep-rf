@@ -1,11 +1,19 @@
+#
+# DeepRFLearners perform deep Q-learning on SinglePlayerGames.
+# As it plays the game, the learner trains weights of a QGraph
+# to maximize long-term reward based on a user-provided
+# reward function.
+#
+# Authors:
+#    Christopher Aicher <aicherc@uw.edu>
+#    Luca Weihs <lucaw@uw.edu>
+#    Kyle Lo <kyleclo@uw.edu>
+#    Wesley Lee <wtlee@uw.edu>
+#
+# License: BSD 3 clause
+#
 
-#!/usr/bin/env python
-"""
-Does Deep Q-Learning for Snake
 
-"""
-
-# Import Modules
 import numpy as np
 import tensorflow as tf
 import os
@@ -13,13 +21,16 @@ from single_player_game import SinglePlayerGame
 from q_graph import QGraph
 import epsilon_method
 
+
 class ExperienceTuple:
     """ ExperienceTuple data structure for DeepRFLearner """
+
     def __init__(self, state, action, reward, next_state):
         self.state = state
         self.action = action
         self.reward = reward
         self.next_state = next_state
+
 
 class State:
     """
@@ -33,6 +44,7 @@ class State:
         new_state_from_old(new_frame) - return new State object
         to_array() - return (board_height by board_width by num_frames ndarray) representation
     """
+
     def __init__(self, frames_tuple):
         self.frames_tuple = frames_tuple
 
@@ -43,6 +55,7 @@ class State:
     def to_array(self):
         """ Return the state as a 3D ndarray """
         return np.dstack(self.frames_tuple)
+
 
 class DeepRFLearner(object):
     """ DeepRFLearner Class
@@ -66,12 +79,18 @@ class DeepRFLearner(object):
 
     """
 
-    def __init__(self, game, q_graph, reward_function, random_move_iterator=None, file_save_path=None):
-        self.gamma = 0.9
+    def __init__(self,
+                 game,
+                 q_graph,
+                 reward_function,
+                 gamma=0.9,
+                 random_move_iterator=None,
+                 file_save_path=None):
+        self._gamma = gamma
         self.file_save_path = file_save_path
 
         #  TODO: game.copy()
-        assert(isinstance(game, SinglePlayerGame))
+        assert (isinstance(game, SinglePlayerGame))
         assert (isinstance(q_graph, QGraph))
         self._game = game
         self._q_graph = q_graph
@@ -96,50 +115,56 @@ class DeepRFLearner(object):
                 self._sess = tf.Session(graph=g)
 
                 # TODO: DeepRF.start_session() and only load correct variables
-                if file_save_path is not None and os.path.exists(file_save_path):
+                if file_save_path is not None and os.path.exists(
+                        file_save_path):
                     self._saver.restore(self._sess, file_save_path)
                     print("Model restored from " + file_save_path + ".")
                 else:
                     self._sess.run(tf.initialize_all_variables())
 
-
     def __del__(self):
         self._sess.close()
-
 
     def save_tf_weights(self):
         if self.file_save_path is not None:
             self._saver.save(self._sess, self.file_save_path)
 
-
     def _init_training_loss_operation(self):
         y_obs = tf.placeholder(dtype=tf.float32, shape=[None])
         action_indices = tf.placeholder(dtype=tf.int64, shape=[None])
-        action_one_hot = tf.one_hot(action_indices, 4, on_value=1.0, off_value=0.0)
-        y_pred = tf.reduce_sum(self._q_graph.q_output * action_one_hot, reduction_indices=1)
-        loss = tf.reduce_mean((y_obs - y_pred)**2)
+        action_one_hot = tf.one_hot(indices=action_indices,
+                                    depth=4,
+                                    on_value=1.0,
+                                    off_value=0.0)
+        y_pred = tf.reduce_sum(input_tensor=self._q_graph.q_output * action_one_hot,
+                               reduction_indices=1)
+        loss = tf.reduce_mean((y_obs - y_pred) ** 2)
         return y_obs, action_indices, loss
 
-
-    def learn_q_function(self, num_iterations=1000, batch_size=50,
+    def learn_q_function(self,
+                         num_iterations=1000,
+                         batch_size=50,
                          num_training_steps=10):
         # For Training Time
-            # Get next sample -> List of ExperienceTuples
-            # Get a minibatch -> partially Optimize Q for loss
+        # Get next sample -> List of ExperienceTuples
+        # Get a minibatch -> partially Optimize Q for loss
 
         # Return Q or Q parameters
 
         experience_tuple_generator = self.get_next_experience_tuple()
         for it in xrange(num_iterations):
             print it
-            for __ in xrange(batch_size):
-                self._experience_replay.append(experience_tuple_generator.next())
-            experience_batch = np.random.choice(self._experience_replay, batch_size, replace=False)
-            actions_batch = [self._game.action_dict[et.action] for et in experience_batch]
+            for _ in xrange(batch_size):
+                self._experience_replay.append(
+                    experience_tuple_generator.next())
+            experience_batch = np.random.choice(self._experience_replay,
+                                                batch_size, replace=False)
+            actions_batch = [self._game.action_dict[et.action] for et in
+                             experience_batch]
             states_batch = [et.state.to_array() for et in experience_batch]
             y_targets = self._get_target_values(experience_batch)
 
-            for __ in xrange(num_training_steps):
+            for _ in xrange(num_training_steps):
                 self._sess.run(self._optimizer,
                                feed_dict={self._q_graph.q_input: states_batch,
                                           self._action_indices: actions_batch,
@@ -164,8 +189,8 @@ class DeepRFLearner(object):
         game_not_over_indicator = np.array(
             [1.0 if et.next_state is not None else 0.0 for et in
              experience_batch])
-        y_target = rewards + self.gamma * np.max(q_values,
-                                                 axis=1) * game_not_over_indicator
+        y_target = rewards + self._gamma * np.max(q_values,
+                                                  axis=1) * game_not_over_indicator
         return y_target
 
     def get_next_experience_tuple(self):
@@ -179,26 +204,28 @@ class DeepRFLearner(object):
         while True:
             self._game.reset()
             first_frame = self._game.get_frame()
-            state_padding = [np.zeros(first_frame.shape) for _ in range(self._num_frames - 1)]
+            state_padding = [np.zeros(first_frame.shape) for _ in
+                             range(self._num_frames - 1)]
             current_state = State(tuple(state_padding) + (first_frame,))
 
             while not self._game.is_game_over():
                 action = self._choose_action_with_noise(current_state)
                 last_score = self._game.score
                 self._game.do_action(action)
-                new_state = current_state.new_state_from_old(self._game.get_frame())
+                new_state = current_state.new_state_from_old(
+                    self._game.get_frame())
                 new_score = self._game.score
-                reward = self._reward_function({"last_score":last_score,
-                                                "new_score":new_score,
-                                               "last_state":current_state,
-                                                "new_state":new_state,
-                                               "is_game_over":self._game.is_game_over()})
+                reward = self._reward_function(last_score=last_score,
+                                               new_score=new_score,
+                                               last_state=current_state,
+                                               new_state=new_state,
+                                               is_game_over=self._game.is_game_over())
                 if self._game.is_game_over():
                     yield ExperienceTuple(current_state, action, reward, None)
                 else:
-                    yield ExperienceTuple(current_state, action, reward, new_state)
+                    yield ExperienceTuple(current_state, action, reward,
+                                          new_state)
                 current_state = new_state
-
 
     def _choose_action_with_noise(self, state):
         if self._random_move_iterator.next():
@@ -228,8 +255,7 @@ class DeepRFLearner(object):
                 ]
             return actions
         else:
-            return TypeError
-
+            raise TypeError
 
     def evaluate_q_function(self, state):
         """ Return q_values for for given state(s)
@@ -255,4 +281,3 @@ class DeepRFLearner(object):
             return q_values[0]
         elif isinstance(state, list):
             return q_values
-

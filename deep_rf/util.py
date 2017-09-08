@@ -1,8 +1,14 @@
-"""
-
-Utility functions for predefined Q-graphs
-
-"""
+#
+# Utility functions for defining Q graphs
+#
+# Authors:
+#    Christopher Aicher <aicherc@uw.edu>
+#    Luca Weihs <lucaw@uw.edu>
+#    Kyle Lo <kyleclo@uw.edu>
+#    Wesley Lee <wtlee@uw.edu>
+#
+# License: BSD 3 clause
+#
 
 import tensorflow as tf
 from operator import mul
